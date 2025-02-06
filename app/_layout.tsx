@@ -1,5 +1,12 @@
-import { Stack } from "expo-router";
+// _layout.tsx
+import React from 'react';
+import { Stack } from 'expo-router';
 
-export default function RootLayout() {
-  return <Stack />;
+export default function Layout() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="timetable" />
+    </Stack>
+  );
 }

@@ -39,5 +39,7 @@ npx expo start -c
 
 Expo Go app and scan qr code
 
+ctrl+c to stop server
+
 edit the index.tsx file to see changes.
 
