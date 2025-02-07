@@ -43,3 +43,4 @@ ctrl+c to stop server
 
 edit the index.tsx file to see changes.
 
+npx expo install react-native-webview - to update to include web views for google maps

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Text, View, Button, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';  // Use useRouter from expo-router
+import { useRouter } from 'expo-router';  // Use expo-router for navigation
 
 export default function Index() {
-  const router = useRouter();  // Access router for navigation
+  const router = useRouter();  
 
   return (
     <View style={styles.container}>
@@ -12,8 +12,14 @@ export default function Index() {
 
       <Button
         title="View Timetable"
-        onPress={() => router.push('/timetable')}  // Use router.push for navigation
+        onPress={() => router.push('/timetable')}
         color="#007BFF"
+      />
+
+      <Button
+        title="View Map"
+        onPress={() => router.push('/map')}  
+        color="#28a745"  
       />
     </View>
   );
