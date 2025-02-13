@@ -3,8 +3,15 @@ package trinitytransit.backend.backend;
 import com.google.maps.GeoApiContext;
 import com.google.maps.GeocodingApi;
 import com.google.maps.model.GeocodingResult;
+
 import com.google.maps.model.LatLng;
 import com.google.maps.PlacesApi;
+import com.google.maps.errors.ApiException;
+import com.google.maps.model.PlaceType;
+import com.google.maps.model.PlacesSearchResponse;
+import com.google.maps.model.PlacesSearchResult;
+
+import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -15,10 +22,6 @@ import org.springframework.web.client.RestTemplate;
 public class GoogleMapsService {
 
     private final GeoApiContext context;
-    private static final String BASE_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
-
-    @Value("${google.maps.api.key}")
-    private String apiKey;
 
     public GoogleMapsService(GeoApiContext context) {
         this.context = context;
@@ -28,18 +31,8 @@ public class GoogleMapsService {
         return GeocodingApi.geocode(context, address).await();
     }
 
-    public String getNearbyBusStops(double lat, double lng, int radius){
-        String url = String.format("%s?location=%f,%f&radius=%d&type=bus_station&key=%s",
-                BASE_URL, lat, lng, radius, apiKey);
-
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-
-        LatLng test = new LatLng(lat, lng);
-        PlacesApi.nearbySearchQuery(context, test);
-
-        return response.getBody();
+    public PlacesSearchResult[] getNearbyBusStops(LatLng location, int radius) throws Exception {
+        return PlacesApi.nearbySearchQuery(context, location).radius(radius)
+        .type(PlaceType.BUS_STATION).await().results;
     }
-
-    // Add more methods for different Google Maps API functionalities
 }

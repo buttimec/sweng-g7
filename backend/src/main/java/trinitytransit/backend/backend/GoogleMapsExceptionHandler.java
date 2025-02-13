@@ -13,6 +13,4 @@ public class GoogleMapsExceptionHandler {
     public ResponseEntity<String> handleApiException(ApiException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
-
-    // Add more exception handlers as needed
 }
