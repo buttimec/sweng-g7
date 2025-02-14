@@ -1,13 +1,14 @@
-version: '3'
 services:
-
-  database:
-    build: ./database
-    restart: always
-    container_name: database
+  mysql:
+    image: mysql
+    ports:
+      - "3306:3306"
+    expose:
+      - "3306"
     environment:
-      MYSQL_DATABASE : 'fitness_app'
-      MYSQL_ROOT_PASSWORD: 'root'
-    ports: 
-      - '3306:3306'
-
+      - MYSQL_USER=springuser
+      - MYSQL_PASSWORD=ThePassword
+      - MYSQL_DATABASE=db_example
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - "./conf.d:/etc/mysql/conf.d:ro"
