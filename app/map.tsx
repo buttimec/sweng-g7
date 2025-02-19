@@ -1,34 +1,51 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { WebView } from 'react-native-webview';
-
-//Need the Google Maps API Key inserted below to progress this page
+import { useLocationStore } from '@/store';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import MapView, { PROVIDER_DEFAULT, Region } from 'react-native-maps';
 
 export default function MapPage() {
+  const {
+    userLongitude,
+    userLatitude,
+    destinationLatitude,
+    destinationLongitude,
+  } = useLocationStore();
+
+  // State for the map region
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+
+  useEffect(() => {
+    if (userLatitude !== null && userLongitude !== null) {
+      setMapRegion({
+        latitude: userLatitude,
+        longitude: userLongitude,
+        latitudeDelta: 0.01, // Zoom level
+        longitudeDelta: 0.01,
+      });
+    }
+  }, [userLatitude, userLongitude]);
+
   return (
     <View style={styles.container}>
-      <WebView
-        source={{
-          html: `
-            <html>
-              <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                <style>
-                  body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-                  iframe { width: 100%; height: 100%; border: 0; }
-                </style>
-              </head>
-              <body>
-                <iframe 
-                  src="INSERT API KEY HERE WHEN WE HAVE IT" 
-                  allowfullscreen>
-                </iframe>
-              </body>
-            </html>
-          `,
-        }}
-        style={styles.webview}
-      />
+      <Text style={styles.header}>Map</Text>
+
+      <TextInput style={styles.searchBar} placeholder="Search for a route" />
+
+      <View style={styles.mapContainer}>
+        <MapView
+          provider={PROVIDER_DEFAULT}
+          style={styles.map}
+          showsUserLocation={true}
+          region={mapRegion || undefined} // Set initial region when available
+        />
+      </View>
+
+      <ScrollView style={styles.routesList}>
+        <Text style={styles.routeItem}>Route 1:</Text>
+        <Text style={styles.routeItem}>Route 2:</Text>
+        <Text style={styles.routeItem}>Route 3:</Text>
+        <Text style={styles.routeItem}>Route 4:</Text>
+      </ScrollView>
     </View>
   );
 }
@@ -36,8 +53,43 @@ export default function MapPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    padding: 10,
   },
-  webview: {
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  searchBar: {
+    width: '90%',
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingLeft: 10,
+    marginBottom: 20,
+  },
+  mapContainer: {
+    width: '90%',
+    height: 300,
+    borderWidth: 2,
+    borderColor: 'black',
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  map: {
     flex: 1,
+    borderRadius: 10,
+  },
+  routesList: {
+    width: '90%',
+  },
+  routeItem: {
+    fontSize: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
 });
