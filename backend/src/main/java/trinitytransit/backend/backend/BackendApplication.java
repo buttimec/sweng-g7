@@ -19,6 +19,7 @@ public class BackendApplication {
 	public static void main(String[] args) throws Exception {
 		ConfigurableApplicationContext context = SpringApplication.run(BackendApplication.class, args);
 		
+		/*
 		GoogleMapsService googleMapsService = context.getBean(GoogleMapsService.class);
 
 		LatLng trinityLocation = new LatLng(53.344480, -6.259396);
@@ -43,6 +44,7 @@ public class BackendApplication {
 				}
 			}
 		}
+		*/
 
 		/*int radius = 1000;
 		PlacesSearchResult[] results = googleMapsService.getNearbyBusStops(trinityLocation, radius);
