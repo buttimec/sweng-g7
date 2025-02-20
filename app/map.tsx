@@ -1,6 +1,6 @@
 import { useLocationStore } from '@/store';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Button } from 'react-native';
 import MapView, { PROVIDER_DEFAULT, Region } from 'react-native-maps';
 
 export default function MapPage() {
@@ -25,11 +25,19 @@ export default function MapPage() {
     }
   }, [userLatitude, userLongitude]);
 
+
+  // Manual trigger for debugging
+  const fetchRoutes = () => {
+    console.log("🛠 Manually fetching routes...");
+    //fetchTimetable();
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Map</Text>
 
       <TextInput style={styles.searchBar} placeholder="Search for a route" />
+      <Button title="Fetch Routes" onPress={fetchRoutes}/>
 
       <View style={styles.mapContainer}>
         <MapView
