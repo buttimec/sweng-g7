@@ -51,6 +51,22 @@ public class BackendApplication {
 		{
 			System.out.println("Bus Stop: " + result.name + " at " + result.geometry.location);
 		}*/
+
+		TripUpdateService tripUpdateService = context.getBean(TripUpdateService.class);
+
+		try {
+			// Fetch trip updates from the API
+			List<TripUpdate> tripUpdates = tripUpdateService.getTripUpdates();
+
+			// Print first 10 trip updates
+			System.out.println("First 10 Trip Updates:");
+			tripUpdates.stream()
+					.limit(10)
+					.forEach(trip -> System.out.println(trip));
+
+		} catch (Exception e) {
+			System.err.println("❌ Error fetching trip updates: " + e.getMessage());
+		}
 	}
 
 }
