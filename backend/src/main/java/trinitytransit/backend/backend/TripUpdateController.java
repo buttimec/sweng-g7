@@ -13,7 +13,7 @@ public class TripUpdateController {
     @Autowired
     private TripUpdateService tripUpdateService;
 
-    @GetMapping("/api/tripupdates")
+    @GetMapping
     public ResponseEntity<List<TripUpdate>> getTripUpdates() {
         try {
             List<TripUpdate> tripUpdates = tripUpdateService.getTripUpdates();
@@ -23,3 +23,4 @@ public class TripUpdateController {
         }
     }
 }
+
