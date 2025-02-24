@@ -7,13 +7,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/trip-updates")
-@CrossOrigin(origins = "http://localhost:3000")
 public class TripUpdateController {
 
     @Autowired
     private TripUpdateService tripUpdateService;
 
-    @GetMapping
+    @GetMapping  // Add this annotation
     public ResponseEntity<List<TripUpdate>> getTripUpdates() {
         try {
             List<TripUpdate> tripUpdates = tripUpdateService.getTripUpdates();
