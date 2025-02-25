@@ -2,6 +2,7 @@ package trinitytransit.backend.backend;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.model.LatLng;
+import com.google.maps.model.PlaceDetails;
 import com.google.maps.model.PlacesSearchResult;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +42,11 @@ public class GoogleMapsController {
             @RequestParam int radius) throws Exception {
         LatLng location = new LatLng(lat, lng); // Construct LatLng from lat and lng
         return googleMapsService.getNearbyBusStops(location, radius);
+    }
+
+    @GetMapping("/placeDetails")
+    public PlaceDetails getPlaceDetails(@RequestParam String placeId) throws Exception {
+        return googleMapsService.getDetails(placeId);
     }
 
     //http://localhost:8080/directions?originLat=53.344480&originLng=-6.259396&destLat=53.337863&destLng=-6.283883

@@ -9,6 +9,7 @@ import com.google.maps.model.PlaceType;
 import com.google.maps.model.PlacesSearchResult;
 import com.google.maps.DirectionsApi;
 import com.google.maps.model.LatLng;
+import com.google.maps.model.PlaceDetails;
 import com.google.maps.model.TravelMode;
 import org.springframework.stereotype.Service;
 
@@ -41,5 +42,9 @@ public class GoogleMapsService {
                 .alternatives(true)
                 .await()
                 .routes;
+    }
+
+    public PlaceDetails getDetails(String placeId) throws Exception {
+        return PlacesApi.placeDetails(context, placeId).await();
     }
 }

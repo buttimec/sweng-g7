@@ -73,7 +73,7 @@ export default function MapPage() {
 
   const getDestinationCoordinates = async (
     addr: string
-  ): Promise<{ lat: number; lng: number } | null> => {
+  ): Promise<{ lat: number; lng: number, placeId: string } | null> => {
     try {
       console.log("Geocoding address:", addr);
       const response = await fetch(
@@ -86,8 +86,9 @@ export default function MapPage() {
       const data = await response.json();
       if (data[0] && data[0].geometry && data[0].geometry.location) {
         const { lat, lng } = data[0].geometry.location;
+        const placeId = data[0].placeId;
         console.log("Coordinates for", addr, ":", lat, lng);
-        return { lat, lng };
+        return { lat, lng, placeId };
       } else {
         console.error("No coordinates found for", addr);
         return null;
