@@ -1,3 +1,34 @@
+## How to run
+
+Run BackendApplication.java
+
+One time only: Download ngrok.exe from https://ngrok.com/
+
+Start ngrok "server" in a terminal with: ngrok http http://localhost:8080
+
+Take the Forwarding url and add it to "const BACKEND_URL =FORWARDING_URL_HERE" in app/map.tsx
+
+Start front end app with: npx expo start -c
+
+Scan QR code on ExpoGO app on phone
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
