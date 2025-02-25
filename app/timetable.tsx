@@ -9,8 +9,9 @@ import {
   Button 
 } from 'react-native';
 
-// ✅ API Configuration
-const API_URL = 'http://localhost:8080/api/trip-updates';
+import { BACKEND_URL } from '@/config'
+
+const API_URL = `${BACKEND_URL}/api/trip-updates`;
 
 // ✅ Define TypeScript Interface for the API response
 interface TripUpdate {
@@ -22,7 +23,7 @@ interface TripUpdate {
 
 // ✅ Convert seconds to minutes for display
 const formatDelay = (seconds: number): string => {
-  if (seconds < 60) return `< 1 min`; // Show "< 1 min" if less than 60 seconds
+  if (seconds < 60) return `< 1 min`;
   return `${Math.round(seconds / 60)} min`;
 };
 
@@ -122,10 +123,18 @@ const Timetable: React.FC = () => {
       {timetable.length > 0 ? (
         timetable.map((item, index) => (
           <View key={index} style={styles.card}>
-            <Text style={styles.routeText}>📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text></Text>
-            <Text style={styles.stopText}>🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text></Text>
-            <Text style={styles.delayText}>⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text></Text>
-            <Text style={styles.transportationText}>🚌 Transport: <Text style={styles.bold}>{item.transportation}</Text></Text>
+            <Text style={styles.routeText}>
+              📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
+            </Text>
+            <Text style={styles.stopText}>
+              🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
+            </Text>
+            <Text style={styles.delayText}>
+              ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
+            </Text>
+            <Text style={styles.transportationText}>
+              🚌 Transport: <Text style={styles.bold}>{item.transportation}</Text>
+            </Text>
           </View>
         ))
       ) : (
