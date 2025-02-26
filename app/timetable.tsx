@@ -6,10 +6,12 @@ import {
   ScrollView, 
   ActivityIndicator, 
   RefreshControl, 
-  Button 
+  Button,
+  TouchableOpacity
 } from 'react-native';
-
-import { BACKEND_URL } from '@/config'
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { BACKEND_URL } from '@/config';
 
 const API_URL = `${BACKEND_URL}/api/trip-updates`;
 
@@ -28,18 +30,15 @@ const formatDelay = (seconds: number): string => {
 };
 
 const Timetable: React.FC = () => {
+  const router = useRouter();
   const [timetable, setTimetable] = useState<TripUpdate[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  console.log("🟢 Timetable component is mounting...");
-
   // ✅ Fetch trip updates
   const fetchTimetable = useCallback(async () => {
-    console.log("🚀 Fetching real-time trip updates...");
     setLoading(true);
-
     try {
       const response = await fetch(API_URL, {
         headers: {
@@ -47,25 +46,17 @@ const Timetable: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-
-      console.log("📡 Response status:", response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-
       const data: TripUpdate[] = await response.json();
-
       if (!Array.isArray(data)) {
         throw new Error("Invalid API response format - expected an array.");
       }
-
-      console.log("✅ Successfully retrieved trip updates", data);
       setTimetable(data);
       setError(null);
     } catch (err) {
-      console.error("❌ Fetch error:", err);
       setError(`❌ Fetch error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setLoading(false);
@@ -80,72 +71,83 @@ const Timetable: React.FC = () => {
 
   // ✅ Pull-to-refresh functionality
   const onRefresh = () => {
-    console.log("🔄 Refreshing trip updates...");
     setRefreshing(true);
     fetchTimetable();
   };
 
   // ✅ Manual trigger for debugging
   const debugFetch = () => {
-    console.log("🛠 Manually fetching trip updates...");
     fetchTimetable();
   };
 
-  // ✅ Show loading indicator
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text>Loading trip updates...</Text>
-        <Button title="Retry" onPress={debugFetch} />
-      </View>
-    );
-  }
-
-  // ✅ Show error message if fetching fails
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.error}>❌ Error: {error}</Text>
-        <Button title="Retry Fetch" onPress={fetchTimetable} />
-      </View>
-    );
-  }
-
-  // ✅ Render the timetable
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <Text style={styles.header}>🚌 Real-time Trip Updates</Text>
-      <Button title="Debug Fetch" onPress={debugFetch} color="#007AFF" />
-      {timetable.length > 0 ? (
-        timetable.map((item, index) => (
-          <View key={index} style={styles.card}>
-            <Text style={styles.routeText}>
-              📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
-            </Text>
-            <Text style={styles.stopText}>
-              🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
-            </Text>
-            <Text style={styles.delayText}>
-              ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
-            </Text>
-            <Text style={styles.transportationText}>
-              🚌 Transport: <Text style={styles.bold}>{item.transportation}</Text>
-            </Text>
-          </View>
-        ))
+    <View style={styles.fullContainer}>
+      {/* Header with Back Arrow */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity style={styles.backArrow} onPress={() => router.push('/')}>
+          <Ionicons name="arrow-back" size={26} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text>Loading trip updates...</Text>
+          <Button title="Retry" onPress={debugFetch} />
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.error}>❌ Error: {error}</Text>
+          <Button title="Retry Fetch" onPress={fetchTimetable} />
+        </View>
       ) : (
-        <Text style={styles.noData}>No trip updates available.</Text>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <Text style={styles.header}>🚌 Real-time Trip Updates</Text>
+          <Button title="Debug Fetch" onPress={debugFetch} color="#007AFF" />
+          {timetable.length > 0 ? (
+            timetable.map((item, index) => (
+              <View key={index} style={styles.card}>
+                <Text style={styles.routeText}>
+                  📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
+                </Text>
+                <Text style={styles.stopText}>
+                  🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
+                </Text>
+                <Text style={styles.delayText}>
+                  ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
+                </Text>
+                <Text style={styles.transportationText}>
+                  🚌 Transport: <Text style={styles.bold}>{item.transportation}</Text>
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noData}>No trip updates available.</Text>
+          )}
+        </ScrollView>
       )}
-    </ScrollView>
+    </View>
   );
 };
 
-// ✅ Define styles
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 5,
+    backgroundColor: '#F8F9FA',
+  },
+  backArrow: {
+    
+  },
   container: {
     flexGrow: 1,
     padding: 16,
@@ -166,7 +168,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
-    elevation: 3, // Android shadow
+    elevation: 3, 
     borderLeftWidth: 6,
     borderColor: '#007AFF',
   },

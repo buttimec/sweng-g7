@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { PROVIDER_DEFAULT, Marker, Region } from 'react-native-maps';
 import { BACKEND_URL } from '@/config';
 import { useLocationStore } from '@/store';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const CustomButton = ({ title, onPress }: { title: string; onPress: () => void }) => (
   <TouchableOpacity style={styles.button} onPress={onPress}>
@@ -18,6 +20,7 @@ interface PersistedState {
 }
 
 export default function MapPage() {
+  const router = useRouter();
   const { userLatitude, userLongitude, setDestinationLocation } = useLocationStore();
 
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
@@ -189,6 +192,13 @@ export default function MapPage() {
 
   return (
     <View style={styles.container}>
+      {/* Smaller Header with Back Arrow */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity style={styles.backArrow} onPress={() => router.push('/')}>
+          <Ionicons name="arrow-back" size={26} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.mapContainer}>
         <MapView
           provider={PROVIDER_DEFAULT}
@@ -315,8 +325,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 5,
+    backgroundColor: '#f8f9fa',
+  },
+  backArrow: {
+    
+  },
   mapContainer: {
-    margin: 20,
+    marginHorizontal: 10,
+    marginTop: 5,
     borderWidth: 2,
     borderColor: '#007AFF',
     borderRadius: 20,
@@ -331,7 +353,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     paddingBottom: 20,
   },
   inputContainer: {
