@@ -1,10 +1,12 @@
+version: '3'
 services:
-  mysql:
-    image: 'mysql:latest'
+
+  database:
+    build: ./database
+    restart: always
+    container_name: database
     environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
+      MYSQL_DATABASE : 'trinity_transit'
+      MYSQL_ROOT_PASSWORD: 'root'
     ports:
-      - '3306'
+      - '3306:3306'
