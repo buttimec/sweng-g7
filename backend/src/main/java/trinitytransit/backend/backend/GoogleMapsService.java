@@ -2,25 +2,19 @@ package trinitytransit.backend.backend;
 
 import com.google.maps.GeoApiContext;
 import com.google.maps.GeocodingApi;
+import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.GeocodingResult;
-
-import com.google.maps.model.LatLng;
 import com.google.maps.PlacesApi;
-import com.google.maps.errors.ApiException;
 import com.google.maps.model.PlaceType;
-import com.google.maps.model.PlacesSearchResponse;
 import com.google.maps.model.PlacesSearchResult;
-
-import java.io.IOException;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import com.google.maps.DirectionsApi;
+import com.google.maps.model.LatLng;
+import com.google.maps.model.PlaceDetails;
+import com.google.maps.model.TravelMode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Service
 public class GoogleMapsService {
-
     private final GeoApiContext context;
 
     public GoogleMapsService(GeoApiContext context) {
@@ -32,7 +26,25 @@ public class GoogleMapsService {
     }
 
     public PlacesSearchResult[] getNearbyBusStops(LatLng location, int radius) throws Exception {
-        return PlacesApi.nearbySearchQuery(context, location).radius(radius)
-        .type(PlaceType.BUS_STATION).await().results;
+        return PlacesApi.nearbySearchQuery(context, location)
+                .radius(radius)
+                .type(PlaceType.BUS_STATION)
+                .await()
+                .results;
+    }
+
+    public DirectionsRoute[] getDirections(LatLng origin, LatLng destination) throws Exception {
+        return DirectionsApi.newRequest(context)
+                .origin(origin)
+                .destination(destination)
+                .departureTimeNow()
+                .mode(TravelMode.TRANSIT)
+                .alternatives(true)
+                .await()
+                .routes;
+    }
+
+    public PlaceDetails getDetails(String placeId) throws Exception {
+        return PlacesApi.placeDetails(context, placeId).await();
     }
 }

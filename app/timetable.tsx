@@ -1,157 +1,199 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Button } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  ActivityIndicator, 
+  RefreshControl, 
+  Button,
+  TouchableOpacity
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { BACKEND_URL } from '@/config';
 
-// API Configuration
-const API_KEY = '9b70ea23a4a94ba68a7ebba3fadcd818';
-const API_URL = 'https://api.nationaltransport.ie/gtfsr/v2/Vehicles?format=json';
+const API_URL = `${BACKEND_URL}/api/trip-updates`;
 
-export default function Timetable() {
-  const [timetable, setTimetable] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+// ✅ Define TypeScript Interface for the API response
+interface TripUpdate {
+  routeShortName: string;
+  totalDelay: number; // Delay is in seconds from API
+  stopName: string;
+  transportation: string;
+}
 
-  console.log("🟢 Timetable component is mounting...");
+// ✅ Convert seconds to minutes for display
+const formatDelay = (seconds: number): string => {
+  if (seconds < 60) return `< 1 min`;
+  return `${Math.round(seconds / 60)} min`;
+};
 
+const Timetable: React.FC = () => {
+  const router = useRouter();
+  const [timetable, setTimetable] = useState<TripUpdate[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ✅ Fetch trip updates
   const fetchTimetable = useCallback(async () => {
-  console.log("🚀 Fetching real-time bus timetable...");
-  setLoading(true);
-
-  try {
-    const response = await fetch(API_URL, {
-      headers: {
-        'x-api-key': API_KEY,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-	"Access-Control-Allow-Origin": "*",
-      },
-    });
-
-    console.log("📡 Response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      const data: TripUpdate[] = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid API response format - expected an array.");
+      }
+      setTimetable(data);
+      setError(null);
+    } catch (err) {
+      setError(`❌ Fetch error: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-
-    const data = await response.json();
-
-    if (!data?.entity) {
-      throw new Error("Invalid API response format - missing 'entity'");
-    }
-
-    const formattedData = data.entity.map((entry, index) => ({
-      bus: entry.vehicle?.vehicle?.label || `Bus ${index + 1}`,
-      time: entry.vehicle?.timestamp
-        ? new Date(entry.vehicle.timestamp * 1000).toLocaleTimeString()
-        : "N/A",
-      route: entry.vehicle?.trip?.route_id || "Unknown",
-    }));
-
-    console.log("✅ Successfully retrieved bus data", formattedData);
-    setTimetable(formattedData);
-    setError(null);
-  } catch (err) {
-    console.error("❌ Fetch error:", err);
-
-    if (err instanceof TypeError) {
-      console.error("⚠️ Possible network issue or CORS restriction.");
-      setError(`Network error or CORS issue: ${err.message}`);
-    } else {
-      setError(`❌ Fetch error: ${err.message}`);
-    }
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-}, []);
-
-
-  // useEffect to fetch timetable on mount
-  useEffect(() => {
-    fetchTimetable();
   }, []);
 
-  // Pull-to-refresh functionality
+  // ✅ useEffect to fetch timetable on mount
+  useEffect(() => {
+    fetchTimetable();
+  }, [fetchTimetable]);
+
+  // ✅ Pull-to-refresh functionality
   const onRefresh = () => {
-    console.log("🔄 Refreshing bus timetable...");
     setRefreshing(true);
     fetchTimetable();
   };
 
-  // Manual trigger for debugging
+  // ✅ Manual trigger for debugging
   const debugFetch = () => {
-    console.log("🛠 Manually fetching bus timetable...");
     fetchTimetable();
   };
 
-  // Show loading indicator
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading bus timetable...</Text>
-        <Button title="Retry" onPress={debugFetch} />
-      </View>
-    );
-  }
-
-  // Show error message if fetching fails
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.error}>❌ Error: {error}</Text>
-        <Button title="Retry Fetch" onPress={fetchTimetable} />
-      </View>
-    );
-  }
-
-  // Render the timetable
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <Text style={styles.header}>🚌 Real-time Bus Schedule</Text>
-      <Button title="Debug Fetch" onPress={debugFetch} />
-      {timetable.length > 0 ? (
-        timetable.map((item, index) => (
-          <View key={index} style={styles.row}>
-            <Text style={styles.busText}>{item.bus} ({item.route})</Text>
-            <Text style={styles.timeText}>{item.time}</Text>
-          </View>
-        ))
+    <View style={styles.fullContainer}>
+      {/* Header with Back Arrow */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity style={styles.backArrow} onPress={() => router.push('/')}>
+          <Ionicons name="arrow-back" size={26} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text>Loading trip updates...</Text>
+          <Button title="Retry" onPress={debugFetch} />
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.error}>❌ Error: {error}</Text>
+          <Button title="Retry Fetch" onPress={fetchTimetable} />
+        </View>
       ) : (
-        <Text style={styles.noData}>No bus data available.</Text>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <Text style={styles.header}>🚌 Real-time Trip Updates</Text>
+          <Button title="Debug Fetch" onPress={debugFetch} color="#007AFF" />
+          {timetable.length > 0 ? (
+            timetable.map((item, index) => (
+              <View key={index} style={styles.card}>
+                <Text style={styles.routeText}>
+                  📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
+                </Text>
+                <Text style={styles.stopText}>
+                  🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
+                </Text>
+                <Text style={styles.delayText}>
+                  ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
+                </Text>
+                <Text style={styles.transportationText}>
+                  🚌 Transport: <Text style={styles.bold}>{item.transportation}</Text>
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noData}>No trip updates available.</Text>
+          )}
+        </ScrollView>
       )}
-    </ScrollView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
+  fullContainer: {
     flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 5,
+    backgroundColor: '#F8F9FA',
+  },
+  backArrow: {
+    
+  },
+  container: {
+    flexGrow: 1,
     padding: 16,
+    backgroundColor: '#F8F9FA',
   },
   header: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  busText: {
-    fontSize: 16,
     color: '#333',
   },
-  timeText: {
+  card: {
+    backgroundColor: 'white',
+    padding: 15,
+    marginVertical: 8,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3, 
+    borderLeftWidth: 6,
+    borderColor: '#007AFF',
+  },
+  routeText: {
+    fontSize: 18,
+    color: '#007AFF',
+    marginBottom: 5,
+  },
+  stopText: {
     fontSize: 16,
     color: '#333',
+    marginBottom: 5,
+  },
+  delayText: {
+    fontSize: 16,
+    color: '#FF5733',
+    marginBottom: 5,
+  },
+  transportationText: {
+    fontSize: 16,
+    color: '#28A745',
+    marginBottom: 5,
+  },
+  bold: {
+    fontWeight: 'bold',
   },
   center: {
     flex: 1,
@@ -162,10 +204,14 @@ const styles = StyleSheet.create({
   error: {
     color: 'red',
     fontSize: 16,
+    textAlign: 'center',
   },
   noData: {
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 18,
     color: '#555',
+    marginTop: 20,
   },
 });
+
+export default Timetable;

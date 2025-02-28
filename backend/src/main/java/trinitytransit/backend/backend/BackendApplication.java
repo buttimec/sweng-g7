@@ -1,30 +1,20 @@
 package trinitytransit.backend.backend;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
-import com.google.maps.GeoApiContext;
-import com.google.maps.model.LatLng;
-import com.google.maps.model.PlacesSearchResult;
+import com.google.maps.model.AddressComponent;
+import com.google.maps.model.AddressComponentType;
+import com.google.maps.model.GeocodingResult;
+import com.google.maps.model.PlaceDetails;
 
 @SpringBootApplication
 public class BackendApplication {
 
-	public static void main(String[] args) throws Exception {
-		ConfigurableApplicationContext context = SpringApplication.run(BackendApplication.class, args);
-		
-		GoogleMapsService googleMapsService = context.getBean(GoogleMapsService.class);
-
-		LatLng trinityLocation = new LatLng(53.344480, -6.259396);
-        int radius = 1000;
-		PlacesSearchResult[] results = googleMapsService.getNearbyBusStops(trinityLocation, radius);
-
-		for(PlacesSearchResult result : results)
-		{
-			System.out.println("Bus Stop: " + result.name + " at " + result.geometry.location);
-		}
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(BackendApplication.class, args);
+        // No need for any Google Maps API calls here, everything is handled by the controller
+        System.out.println("Backend application is running...");
+    }
 }
