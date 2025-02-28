@@ -1,0 +1,12 @@
+version: '3'
+services:
+
+  database:
+    build: ./database
+    restart: always
+    container_name: database
+    environment:
+      MYSQL_DATABASE : 'trinity_transit'
+      MYSQL_ROOT_PASSWORD: 'root'
+    ports:
+      - '3306:3306'
