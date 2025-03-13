@@ -18,7 +18,7 @@ export default function EditSavedTrips() {
   };
 
   const handleSave = () => {
-    // Future: Save trips to your database
+    // Waiting on the database integration
     console.log('Saved trips:', trips);
     router.back();
   };
