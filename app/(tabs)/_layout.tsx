@@ -18,13 +18,16 @@ export default function Layout() {
             iconName = 'map-outline';
           } else if (route.name === 'profile') {
             iconName = 'person-outline';
+          } else if (route.name == 'camera') {
+            iconName = 'camera';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="camera" options={{ title: 'Camera' }} />
       <Tabs.Screen name="timetable" options={{ title: 'Timetable' }} />
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="map" options={{ title: 'Map' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
