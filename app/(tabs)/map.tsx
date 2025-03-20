@@ -31,6 +31,8 @@ export default function MapPage() {
   const [nearbyStops, setNearbyStops] = useState<any[]>([]);
   const [busStopsLoading, setBusStopsLoading] = useState<boolean>(false);
   const [isRoutePanelExpanded, setIsRoutePanelExpanded] = useState<boolean>(true);
+  const [nearbyBuses, setNearbyBuses] = useState<any[]>([]);
+  const [busesLoading, setBusesLoading] = useState<boolean>(false);
 
   const persistState = async (state: PersistedState) => {
     try {
@@ -71,6 +73,7 @@ export default function MapPage() {
         longitudeDelta: 0.01,
       });
       console.log("User's coordinates set:", userLatitude, userLongitude);
+      fetchNearbyBuses();
     }
   }, [userLatitude, userLongitude]);
 
@@ -184,6 +187,30 @@ export default function MapPage() {
         console.error("Error fetching bus stops:", error);
       } finally {
         setBusStopsLoading(false);
+      }
+    } else {
+      console.log("User location is not set.");
+    }
+  };
+
+  const fetchNearbyBuses = async () => {
+    if (userLatitude && userLongitude) {
+      setBusesLoading(true);
+      try {
+        const response = await fetch(
+          `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=1000`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Nearby buses:", data);
+          setNearbyBuses(data);
+        } else {
+          console.error("Error fetching nearby buses:", response.statusText);
+        }
+      } catch (error) {
+        console.error("Error fetching nearby buses:", error);
+      } finally {
+        setBusesLoading(false);
       }
     } else {
       console.log("User location is not set.");
