@@ -33,6 +33,7 @@ export default function MapPage() {
   const [isRoutePanelExpanded, setIsRoutePanelExpanded] = useState<boolean>(true);
   const [nearbyBuses, setNearbyBuses] = useState<any[]>([]);
   const [busesLoading, setBusesLoading] = useState<boolean>(false);
+  const [showBuses, setShowBuses] = useState<boolean>(false);
 
   const persistState = async (state: PersistedState) => {
     try {
@@ -219,8 +220,6 @@ export default function MapPage() {
 
   return (
     <View style={styles.container}>
-      
-
       <View style={styles.mapContainer}>
         <MapView
           provider={PROVIDER_DEFAULT}
@@ -234,11 +233,30 @@ export default function MapPage() {
             if (latitude && longitude) {
               return (
                 <Marker
-                  key={index}
+                  key={`stop-${index}`}
                   coordinate={{ latitude, longitude }}
                   title={stop.name}
                   description={stop.vicinity || ""}
                 />
+              );
+            }
+            return null;
+          })}
+          {showBuses && nearbyBuses.map((bus: any, index: number) => {
+            if (bus.lat && bus.lng) {
+              return (
+                <Marker
+                  key={`bus-${index}`}
+                  coordinate={{ latitude: bus.lat, longitude: bus.lng }}
+                  title={`Bus ${bus.busNumber ? bus.busNumber : index + 1}`}
+                  description={bus.destination ? `Destination: ${bus.destination}` : "Nearby Bus"}
+                >
+                  <Image
+                    source={require('../../assets/images/simple_bus_icon.png')}
+                    style={{ width: 10, height: 10 }}
+                    resizeMode="contain"
+                  />
+                </Marker>
               );
             }
             return null;
@@ -255,6 +273,10 @@ export default function MapPage() {
           />
           <CustomButton title="Fetch Routes" onPress={handleSearch} />
           <CustomButton title="Find Nearby Bus Stops" onPress={fetchNearbyBusStops} />
+          <CustomButton
+            title={showBuses ? "Hide Nearby Buses" : "Show Nearby Buses"}
+            onPress={() => setShowBuses(!showBuses)}
+          />
         </View>
         {recentDestinations.length > 0 && (
           <View style={styles.recentContainer}>
@@ -320,6 +342,22 @@ export default function MapPage() {
             )}
           </View>
         )}
+        {busesLoading ? (
+          <ActivityIndicator size="small" color="#007AFF" />
+        ) : (
+          showBuses && nearbyBuses.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionHeader}>Nearby Buses</Text>
+              {nearbyBuses.map((bus: any, index: number) => (
+                <View key={index} style={styles.busRow}>
+                  <Text style={styles.busText}>
+                    Bus {bus.busNumber ? bus.busNumber : index + 1} {bus.destination ? `- Destination: ${bus.destination}` : ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )
+        )}
         {busStopsLoading ? (
           <ActivityIndicator size="small" color="#007AFF" />
         ) : (
@@ -346,17 +384,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 5,
-    backgroundColor: '#f8f9fa',
-  },
-  backArrow: {
-    
   },
   mapContainer: {
     marginHorizontal: 10,
@@ -450,6 +477,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#333',
+    marginBottom: 10,
   },
   routeHeaderContainer: {
     flexDirection: 'row',
@@ -513,6 +541,13 @@ const styles = StyleSheet.create({
   },
   busStopText: {
     fontSize: 15,
+    color: '#555',
+  },
+  busRow: {
+    paddingVertical: 6,
+  },
+  busText: {
+    fontSize: 16,
     color: '#555',
   },
 });
