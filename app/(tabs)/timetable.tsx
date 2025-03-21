@@ -81,13 +81,7 @@ const Timetable: React.FC = () => {
   };
 
   return (
-    <View style={styles.fullContainer}>
-      {/* Header with Back Arrow */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backArrow} onPress={() => router.push('/')}>
-          <Ionicons name="arrow-back" size={26} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.fullContainer}>   
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#007AFF" />
