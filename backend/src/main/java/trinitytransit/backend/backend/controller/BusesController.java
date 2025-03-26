@@ -1,3 +1,5 @@
+//Database related
+
 package trinitytransit.backend.backend.controller;
 
 import trinitytransit.backend.backend.service.BusesService;
@@ -14,7 +16,7 @@ public class BusesController {
     @Autowired
     private BusesService busservice;
 
-    @GetMapping("/buses")
+    @GetMapping("/get_bus")
     public List<Buses> getAllBuses(){
         return busservice.getBus();
     }
