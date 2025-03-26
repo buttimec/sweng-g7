@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
+import { BACKEND_URL } from '@/config';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function PhoneCamera() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -36,25 +38,24 @@ export default function PhoneCamera() {
 
   const capturePhoto = async () => {
     if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 1,
-        base64: true,
-        exif: false,
-      });
-      console.log('Photo captured successfully. URI:', photo.uri);
-
+      const photo = await cameraRef.current.takePictureAsync({ base64: false });
+      console.log('Captured:', photo.uri);
+  
+      const resized = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [{ resize: { width: 800 } }], // Resize to reduce file size
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+  
+      console.log('Resized:', resized.uri);
+  
       if (hasMediaPermission) {
-        const asset = await MediaLibrary.createAssetAsync(photo.uri);
-        console.log('Photo saved to camera roll. Asset details:', asset);
-      } else {
-        console.log('Media library permission not granted. Photo not saved locally.');
+        await MediaLibrary.createAssetAsync(resized.uri);
       }
-
-      await uploadPhotoToDatabase(photo);
+  
+      await uploadPhotoToDatabase(resized);
     }
   };
-
-  //method waiting for database connection
 
   const uploadPhotoToDatabase = async (photo: { uri: string; base64?: string }) => {
     try {
@@ -65,19 +66,28 @@ export default function PhoneCamera() {
         type: 'image/jpeg',
         name: 'photo.jpg',
       } as any);
+
       // could add the busStopID / busID that the photo is linked to.
       //formData.append('busStopId', 'BUS_STOP_ID_HERE');
       //formData.append('routeId', 'ROUTE_ID_HERE');
 
-      const response = await fetch('', {
+      const response = await fetch(`${BACKEND_URL}/api/photos/upload`, {
         method: 'POST',
         body: formData,
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      const result = await response.json();
-      console.log('Photo uploaded successfully. Database response:', result);
+      
+      if (response.ok) {
+        const result = await response.text();
+        console.log('Photo uploaded successfully. Database response:', result);
+      } else {
+        const errorText = await response.text(); // fallback for non-JSON errors
+        console.error('Upload failed:', response.status, errorText);
+      }
+
+
     } catch (error) {
       console.error('Error uploading photo to database:', error);
     }
