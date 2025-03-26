@@ -74,7 +74,6 @@ export default function MapPage() {
         longitudeDelta: 0.01,
       });
       console.log("User's coordinates set:", userLatitude, userLongitude);
-      fetchNearbyBuses();
     }
   }, [userLatitude, userLongitude]);
 
@@ -199,12 +198,15 @@ export default function MapPage() {
       setBusesLoading(true);
       try {
         const response = await fetch(
-          `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=1000`
+          `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`
         );
         if (response.ok) {
           const data = await response.json();
           console.log("Nearby buses:", data);
-          setNearbyBuses(data);
+
+          const limitedBuses = data.slice(0, 20); // show max 20
+
+          setNearbyBuses(limitedBuses);
         } else {
           console.error("Error fetching nearby buses:", response.statusText);
         }
@@ -275,7 +277,12 @@ export default function MapPage() {
           <CustomButton title="Find Nearby Bus Stops" onPress={fetchNearbyBusStops} />
           <CustomButton
             title={showBuses ? "Hide Nearby Buses" : "Show Nearby Buses"}
-            onPress={() => setShowBuses(!showBuses)}
+            onPress={async () => {
+              if (!showBuses) {
+                await fetchNearbyBuses(); 
+              }
+              setShowBuses(!showBuses);
+            }}
           />
         </View>
         {recentDestinations.length > 0 && (

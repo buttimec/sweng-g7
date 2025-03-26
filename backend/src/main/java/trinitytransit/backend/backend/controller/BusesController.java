@@ -1,23 +1,26 @@
-//Database related
-
 package trinitytransit.backend.backend.controller;
 
-import trinitytransit.backend.backend.service.BusesService;
 import trinitytransit.backend.backend.entity.Buses;
+import trinitytransit.backend.backend.service.BusesService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@RequestMapping("/api")
 public class BusesController {
 
     @Autowired
-    private BusesService busservice;
+    private BusesService busService;
 
-    @GetMapping("/get_bus")
-    public List<Buses> getAllBuses(){
-        return busservice.getBus();
+    @GetMapping("/get_buses")
+    public List<Buses> getAllBuses() {
+        return busService.getBus();
+    }
+
+    @PostMapping("/get_buses")
+    public Buses createBus(@RequestBody Buses bus) {
+        return busService.saveBus(bus);
     }
 }
