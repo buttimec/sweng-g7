@@ -1,33 +1,56 @@
-// app/profile.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BACKEND_URL } from '@/config';
 
 export default function ProfileScreen() {
   const router = useRouter();
 
-  // Dummy personal details
-  const [personalDetails] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
+  // Real personal details from backend
+  const [personalDetails, setPersonalDetails] = useState({
+    name: '',
+    email: ''
   });
+
   // Dummy saved trips
   const [savedTrips] = useState([
     { id: 'trip1', title: 'Trip to Dublin', date: '2023-10-20' },
     { id: 'trip2', title: 'Trip to Cork', date: '2023-11-05' },
   ]);
+
   // Dummy preferred transport providers
   const [transportProviders] = useState([
     { id: 'prov1', name: 'Provider A' },
     { id: 'prov2', name: 'Provider B' },
   ]);
-  // Dummy profile image URL
+
+  // Dummy profile image
   const [profileImage] = useState('https://via.placeholder.com/150');
+
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        console.log("Fetching user from:", `${BACKEND_URL}/api/users/1`);
+        const response = await fetch(`${BACKEND_URL}/api/users/1`);
+        const data = await response.json();
+        setPersonalDetails(data);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+
+    fetchUserDetails();
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
-      
+      <View style={styles.profileHeader}>
+        <Image source={{ uri: profileImage }} style={styles.profileImage} />
+        <TouchableOpacity style={styles.editPhotoButton}>
+          <Text style={styles.editPhotoButtonText}>Change Photo</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>

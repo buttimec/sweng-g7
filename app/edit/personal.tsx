@@ -1,16 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BACKEND_URL } from '@/config';
 
 export default function EditPersonal() {
   const router = useRouter();
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('john.doe@example.com');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
-  const handleSave = () => {
-    // Waiting on the database integration
-    console.log('Saved personal details:', { name, email });
-    router.back();
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/users/1`);
+        const data = await response.json();
+        setName(data.name || '');
+        setEmail(data.email || '');
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/users/1`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      });
+
+      if (response.ok) {
+        console.log('Updated personal details');
+        router.push('/profile');
+      } else {
+        console.error('Failed to update:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
   };
 
   return (
