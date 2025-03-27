@@ -42,7 +42,7 @@ public class GoogleMapsController {
     }
 
     @GetMapping("/getNearbyBuses")
-    public List<LatLng> getNearbyBuses(
+    public List<Bus> getNearbyBuses(
             @RequestParam double lat,
             @RequestParam double lng,
             @RequestParam int radius) throws Exception {
