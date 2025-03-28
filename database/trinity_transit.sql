@@ -27,17 +27,8 @@ CREATE TABLE BusStop (
 CREATE TABLE Routes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50),
-    startLocation INT,
-    FOREIGN KEY (startLocation) REFERENCES BusStop(id)
-);
-
--- Create a junction table for route stops (many-to-many relationship)
-CREATE TABLE RoutesStops (
-    route_id INT,
-    stop_id INT,
-    PRIMARY KEY (route_id, stop_id),
-    FOREIGN KEY (route_id) REFERENCES Routes(id),
-    FOREIGN KEY (stop_id) REFERENCES BusStop(id)
+    startName INT,
+    startLocation VARCHAR(50) 
 );
 
 -- Create a table for personal user details
@@ -51,19 +42,24 @@ CREATE TABLE PersonalDetails (
 
 -- Create a table for favorite routes (many-to-many relationship)
 CREATE TABLE RoutesFavourites (
-    route_id INT,
-    user_id INT,
-    PRIMARY KEY (route_id, user_id),
-    FOREIGN KEY (route_id) REFERENCES Routes(id),
-    FOREIGN KEY (user_id) REFERENCES PersonalDetails(id)
+    route_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50),
+    startName INT,
+    startLocation VARCHAR(50) 
 );
 
 -- Create a table for favorite transport providers (many-to-many relationship)
 CREATE TABLE ProvidersFavourites (
-    provider_id INT,
-    user_id INT,
-    PRIMARY KEY (provider_id, user_id),
-    FOREIGN KEY (provider_id) REFERENCES TransportProviders(id),
-    FOREIGN KEY (user_id) REFERENCES PersonalDetails(id)
+    provider_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50),
+    vehicleType VARCHAR(50)
 );
+
+CREATE TABLE Photo (
+    photo_id INT AUTO_INCREMENT PRIMARY KEY,
+    filename VARCHAR(50),
+    data VARBINARY(MAX)
+);
+
+
 
