@@ -31,15 +31,21 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
-        console.log("Fetching user from:", `${BACKEND_URL}/api/users/1`);
         const response = await fetch(`${BACKEND_URL}/api/users/1`);
+        console.log('Status:', response.status);
+  
+        if (!response.ok) {
+          console.warn(`User not found or error: ${response.status}`);
+          return; // Exit early
+        }
+  
         const data = await response.json();
         setPersonalDetails(data);
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error('Error fetching user:', error.message);
       }
     };
-
+  
     fetchUserDetails();
   }, []);
 

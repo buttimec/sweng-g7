@@ -22,8 +22,17 @@ public class PersonalDetailsController {
     }
 
     @PostMapping
-    public PersonalDetails createUser(@RequestBody PersonalDetails user) {
-        return repo.save(user);
+    public ResponseEntity<PersonalDetails> createUser(@RequestBody PersonalDetails user) {
+        if (user.getId() != null && repo.existsById(user.getId())) {
+            // User with this ID already exists — conflict
+            return ResponseEntity.status(409).build();
+        }
+
+        // Optionally force ID = 1 if you're working with a single static user
+        // if (user.getId() == null) user.setId(1L);
+
+        PersonalDetails saved = repo.save(user);
+        return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/{id}")
@@ -44,6 +53,15 @@ public class PersonalDetailsController {
         return repo.findById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        if (repo.existsById(id)) {
+            repo.deleteById(id);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
 }
