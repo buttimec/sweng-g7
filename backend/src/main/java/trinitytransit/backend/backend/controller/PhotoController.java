@@ -9,7 +9,11 @@ import trinitytransit.backend.backend.entity.Photo;
 import trinitytransit.backend.backend.repository.PhotoRepository;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/photos")
@@ -27,6 +31,23 @@ public class PhotoController {
         return ResponseEntity.ok("Photo uploaded successfully with ID: " + saved.getId());
     }
 
+    @GetMapping
+    public ResponseEntity<List<Map<String, Object>>> getAllPhotos() {
+        List<Map<String, Object>> photos = photoRepository.findAll().stream()
+            .map(photo -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", photo.getId());
+                map.put("filename", photo.getFilename());
+                map.put("description", photo.getDescription()); 
+                map.put("uploadTime", photo.getUploadTime());
+                return map;
+            })
+            .collect(Collectors.toList());
+
+        return ResponseEntity.ok(photos);
+    }
+
+
     @GetMapping(value = "/{id}", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<byte[]> getPhotoById(@PathVariable Long id) {
         return photoRepository.findById(id)
@@ -37,7 +58,20 @@ public class PhotoController {
             .orElse(ResponseEntity.notFound().build());
     }
 
-    // 🗑️ Delete photo by ID
+    @PutMapping("/{id}/description")
+    public ResponseEntity<Void> updateDescription(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Optional<Photo> optionalPhoto = photoRepository.findById(id);
+        if (optionalPhoto.isPresent()) {
+            Photo photo = optionalPhoto.get();
+            photo.setDescription(body.get("description"));
+            photoRepository.save(photo);
+            return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePhotoById(@PathVariable Long id) {
         if (photoRepository.existsById(id)) {

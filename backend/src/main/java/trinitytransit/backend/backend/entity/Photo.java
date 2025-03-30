@@ -1,6 +1,8 @@
 
 package trinitytransit.backend.backend.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,6 +21,13 @@ public class Photo {
 
     @Lob
     private byte[] data;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column
+    private LocalDateTime uploadTime = LocalDateTime.now();
+
 }
 
 

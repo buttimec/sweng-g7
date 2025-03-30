@@ -6,12 +6,14 @@ import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
 import { BACKEND_URL } from '@/config';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useRouter } from 'expo-router';
 
 export default function PhoneCamera() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [hasMediaPermission, setHasMediaPermission] = useState<boolean | null>(null);
   const cameraRef = useRef<React.ElementRef<typeof CameraView>>(null);
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -106,6 +108,13 @@ export default function PhoneCamera() {
             <Ionicons name="camera" size={32} color="white" />
           </TouchableOpacity>
         </View>
+        <View style={styles.galleryButtonContainer}>
+          <TouchableOpacity onPress={() => router.push('/gallery')} style={styles.galleryButton}>
+            <Ionicons name="images-outline" size={28} color="white" />
+          </TouchableOpacity>
+        </View>
+
+
       </CameraView>
       <StatusBar style="auto" />
     </View>
@@ -140,5 +149,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 50,
     padding: 20,
+  },
+  galleryButtonContainer: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+  },
+  
+  galleryButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 14,
+    borderRadius: 40,
   },
 });
