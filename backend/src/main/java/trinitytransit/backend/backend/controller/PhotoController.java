@@ -9,6 +9,7 @@ import trinitytransit.backend.backend.entity.Photo;
 import trinitytransit.backend.backend.repository.PhotoRepository;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/photos")
@@ -26,8 +27,6 @@ public class PhotoController {
         return ResponseEntity.ok("Photo uploaded successfully with ID: " + saved.getId());
     }
 
-
-    
     @GetMapping(value = "/{id}", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<byte[]> getPhotoById(@PathVariable Long id) {
         return photoRepository.findById(id)
@@ -36,5 +35,34 @@ public class PhotoController {
                 .contentType(MediaType.IMAGE_JPEG)
                 .body(photo.getData()))
             .orElse(ResponseEntity.notFound().build());
+    }
+
+    // 🗑️ Delete photo by ID
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePhotoById(@PathVariable Long id) {
+        if (photoRepository.existsById(id)) {
+            photoRepository.deleteById(id);
+            return ResponseEntity.noContent().build(); // 204
+        } else {
+            return ResponseEntity.notFound().build(); // 404
+        }
+    }
+
+    @DeleteMapping("/by-name/{name}")
+    public ResponseEntity<Void> deleteByName(@PathVariable String name) {
+        Optional<Photo> optionalProvider = photoRepository.findByFilename(name);
+
+        if (optionalProvider.isPresent()) {
+            photoRepository.delete(optionalProvider.get());
+            return ResponseEntity.noContent().build(); // 204
+        } else {
+            return ResponseEntity.notFound().build(); // 404
+        }
+    }
+
+    @DeleteMapping("/all")
+    public ResponseEntity<Void> deleteAllPhotos() {
+        photoRepository.deleteAll();
+        return ResponseEntity.noContent().build(); // 204
     }
 }
