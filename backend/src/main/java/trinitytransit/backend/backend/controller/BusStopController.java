@@ -56,6 +56,13 @@ public class BusStopController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<?> saveMultipleStops(@RequestBody List<BusStop> stops) {
+        List<BusStop> saved = busStopRepository.saveAll(stops);
+        return ResponseEntity.ok(saved);
+    }
+
+
     // Delete a bus stop by ID
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -67,15 +74,14 @@ public class BusStopController {
         }
     }
 
-    @DeleteMapping("/by-name/{name}")  // DELETE http://localhost:8080/api/busstops/by-name/Pearse%20Street%20Stop
+    @DeleteMapping("/by-name/{name}")
     public ResponseEntity<Void> deleteBusStopByName(@PathVariable String name) {
-        Optional<BusStop> optionalStop = busStopRepository.findByName(name);
-
-        if (optionalStop.isPresent()) {
-            busStopRepository.delete(optionalStop.get());
-            return ResponseEntity.noContent().build(); // 204
+        List<BusStop> stops = busStopRepository.findAllByName(name);
+        if (!stops.isEmpty()) {
+            busStopRepository.deleteAll(stops);
+            return ResponseEntity.noContent().build();
         } else {
-            return ResponseEntity.notFound().build(); // 404
+            return ResponseEntity.notFound().build();
         }
     }
 

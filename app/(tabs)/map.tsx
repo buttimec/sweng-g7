@@ -34,6 +34,8 @@ export default function MapPage() {
   const [nearbyBuses, setNearbyBuses] = useState<any[]>([]);
   const [busesLoading, setBusesLoading] = useState<boolean>(false);
   const [showBuses, setShowBuses] = useState<boolean>(false);
+  const [selectedBusStops, setSelectedBusStops] = useState<Set<string>>(new Set());
+  const [favouriteStops, setFavouriteStops] = useState<any[]>([]);
 
   const persistState = async (state: PersistedState) => {
     try {
@@ -57,8 +59,21 @@ export default function MapPage() {
     }
   };
 
+  const fetchFavouriteStops = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/busstops`);
+      if (res.ok) {
+        const data = await res.json();
+        setFavouriteStops(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch saved bus stops:", err);
+    }
+  };
+
   useEffect(() => {
     loadPersistedState();
+    fetchFavouriteStops();
   }, []);
 
   useEffect(() => {
@@ -203,9 +218,7 @@ export default function MapPage() {
         if (response.ok) {
           const data = await response.json();
           console.log("Nearby buses:", data);
-
           const limitedBuses = data.slice(0, 20); // show max 20
-
           setNearbyBuses(limitedBuses);
         } else {
           console.error("Error fetching nearby buses:", response.statusText);
@@ -217,6 +230,46 @@ export default function MapPage() {
       }
     } else {
       console.log("User location is not set.");
+    }
+  };
+
+  const saveSelectedBusStops = async () => {
+    const selected = nearbyStops.filter(stop => selectedBusStops.has(stop.name));
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/busstops/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selected.map(s => ({
+          name: s.name,
+          location: `${s.geometry.location.lat},${s.geometry.location.lng}`
+        }))),
+      });
+      if (response.ok) {
+        alert("Bus stops saved!");
+        setSelectedBusStops(new Set());
+        fetchFavouriteStops();
+      } else {
+        alert("Failed to save stops.");
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+    }
+  };
+
+  const removeBusStop = async (name: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/busstops/by-name/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setFavouriteStops(prev => prev.filter(stop => stop.name !== name));
+      } else {
+        console.error("Failed to delete stop, status:", response.status);
+        const errorText = await response.text();
+        console.error("Error message:", errorText);
+      }
+    } catch (err) {
+      console.error("Error deleting stop:", err);
     }
   };
 
@@ -278,9 +331,7 @@ export default function MapPage() {
           <CustomButton
             title={showBuses ? "Hide Nearby Buses" : "Show Nearby Buses"}
             onPress={async () => {
-              if (!showBuses) {
-                await fetchNearbyBuses(); 
-              }
+              if (!showBuses) await fetchNearbyBuses();
               setShowBuses(!showBuses);
             }}
           />
@@ -377,10 +428,44 @@ export default function MapPage() {
                   <Text style={styles.busStopText}>
                     {stop.name} {stop.vicinity ? `- ${stop.vicinity}` : ""}
                   </Text>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => {
+                      setSelectedBusStops(prev => {
+                        const newSet = new Set(prev);
+                        if (newSet.has(stop.name)) newSet.delete(stop.name);
+                        else newSet.add(stop.name);
+                        return newSet;
+                      });
+                    }}
+                  >
+                    <Ionicons
+                      name={selectedBusStops.has(stop.name) ? "checkbox" : "square-outline"}
+                      size={24}
+                      color="#007AFF"
+                    />
+                  </TouchableOpacity>
                 </View>
               ))}
+              <CustomButton title="Save Selected Stops" onPress={saveSelectedBusStops} />
             </View>
           )
+        )}
+        {favouriteStops.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>Saved Bus Stops</Text>
+            {favouriteStops.map((stop: any, index: number) => (
+              <View key={index} style={styles.busStopRow}>
+                <Ionicons name="star" size={20} color="#f5b301" style={{ marginRight: 6 }} />
+                <Text style={styles.busStopText}>
+                  {stop.name} - {stop.location}
+                </Text>
+                <TouchableOpacity onPress={() => removeBusStop(stop.name)}>
+                  <Ionicons name="trash" size={20} color="red" style={{ marginLeft: 10 }} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -556,6 +641,9 @@ const styles = StyleSheet.create({
   busText: {
     fontSize: 16,
     color: '#555',
+  },
+  checkbox: {
+    marginLeft: 10,
   },
 });
 
