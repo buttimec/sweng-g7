@@ -1,4 +1,4 @@
-export const BACKEND_URL = 'https://665f-84-203-39-104.ngrok-free.app' 
+export const BACKEND_URL = 'https://b623-84-203-39-104.ngrok-free.app' 
 
 // enter your backend url (either localhost or ngrok) 
 // Note: ngrok forwarding address changes everytime when starting a ngrok server - free account version

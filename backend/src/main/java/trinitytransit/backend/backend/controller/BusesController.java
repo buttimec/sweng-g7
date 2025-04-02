@@ -21,32 +21,33 @@ public class BusesController {
     @Autowired
     private BusesRepository busesRepository;
 
-    @GetMapping("/get_buses")
+    
+    @GetMapping
     public List<Buses> getAllBuses() {
         return busService.getBus();
     }
 
-    @PostMapping("/get_buses")
+    @PostMapping
     public Buses createBus(@RequestBody Buses bus) {
         return busService.saveBus(bus);
     }
+    
+    // Batch save buses (optional)
+    @PostMapping("/batch")
+    public List<Buses> createBuses(@RequestBody List<Buses> buses) {
+        return busService.saveBuses(buses); // Ensure this method exists in BusesService
+    }
 
-    // {
-    //     "name": "Clontarf Express",
-    //     "route": "101X"
-    // }
+    // Delete by name DELETE http://localhost:8080/api/buses/by-name/Clontarf%20Express
 
-
-    // Delete by name (safe version) DELETE http://localhost:8080/api/buses/by-name/Clontarf%20Express
     @DeleteMapping("/by-name/{name}")
     public ResponseEntity<Void> deleteBusByName(@PathVariable String name) {
         Optional<Buses> optionalBus = busesRepository.findByName(name);
-
         if (optionalBus.isPresent()) {
             busesRepository.delete(optionalBus.get());
-            return ResponseEntity.noContent().build(); // 204
+            return ResponseEntity.noContent().build(); // 204 No Content
         } else {
-            return ResponseEntity.notFound().build(); // 404
+            return ResponseEntity.notFound().build(); // 404 Not Found
         }
     }
 
@@ -60,13 +61,9 @@ public class BusesController {
         }
     }
 
-    
-
-    @DeleteMapping("/all") //wipe database
+    @DeleteMapping("/all") //wipre database
     public ResponseEntity<Void> deleteAllBuses() {
         busesRepository.deleteAll();
         return ResponseEntity.noContent().build(); // 204 No Content
     }
-
-
 }

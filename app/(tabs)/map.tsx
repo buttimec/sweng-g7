@@ -36,6 +36,11 @@ export default function MapPage() {
   const [showBuses, setShowBuses] = useState<boolean>(false);
   const [selectedBusStops, setSelectedBusStops] = useState<Set<string>>(new Set());
   const [favouriteStops, setFavouriteStops] = useState<any[]>([]);
+  const [selectedBuses, setSelectedBuses] = useState<Set<string>>(new Set());
+  const [savedBuses, setSavedBuses] = useState<any[]>([]);
+  const [isNearbyStopsExpanded, setIsNearbyStopsExpanded] = useState<boolean>(true);
+  const [isNearbyBusesExpanded, setIsNearbyBusesExpanded] = useState<boolean>(true);
+  const [isSavedBusesExpanded, setIsSavedBusesExpanded] = useState<boolean>(true);
 
   const persistState = async (state: PersistedState) => {
     try {
@@ -71,9 +76,25 @@ export default function MapPage() {
     }
   };
 
+  const fetchSavedBuses = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/buses`);
+      if (res.ok) {
+        const data = await res.json();
+        console.log("Saved buses response:", data);
+        setSavedBuses(data);
+      } else {
+        console.error("Failed to fetch saved buses:", res.statusText);
+      }
+    } catch (err) {
+      console.error("Error fetching saved buses:", err);
+    }
+  };
+
   useEffect(() => {
     loadPersistedState();
     fetchFavouriteStops();
+    fetchSavedBuses();
   }, []);
 
   useEffect(() => {
@@ -233,6 +254,29 @@ export default function MapPage() {
     }
   };
 
+  const saveSelectedBuses = async () => {
+    const selected = nearbyBuses.filter(bus => selectedBuses.has(bus.vehicleId));
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/buses/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selected.map(bus => ({
+          name: bus.routeLongName,    
+          route: bus.routeShortName,  
+        }))),
+      });
+      if (response.ok) {
+        alert("Buses saved!");
+        setSelectedBuses(new Set());
+        fetchSavedBuses();
+      } else {
+        alert("Failed to save buses.");
+      }
+    } catch (err) {
+      console.error("Error saving buses:", err);
+    }
+  };
+
   const saveSelectedBusStops = async () => {
     const selected = nearbyStops.filter(stop => selectedBusStops.has(stop.name));
     try {
@@ -273,6 +317,23 @@ export default function MapPage() {
     }
   };
 
+  const removeBus = async (id: number) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/buses/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setSavedBuses(prev => prev.filter(bus => bus.id !== id));
+      } else {
+        console.error("Failed to delete bus, status:", response.status);
+        const errorText = await response.text();
+        console.error("Error message:", errorText);
+      }
+    } catch (err) {
+      console.error("Error deleting bus:", err);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.mapContainer}>
@@ -298,12 +359,12 @@ export default function MapPage() {
             return null;
           })}
           {showBuses && nearbyBuses.map((bus: any, index: number) => {
-            if (bus.lat && bus.lng) {
+            if (bus.latitude && bus.longitude) {
               return (
                 <Marker
                   key={`bus-${index}`}
-                  coordinate={{ latitude: bus.lat, longitude: bus.lng }}
-                  title={`Bus ${bus.busNumber ? bus.busNumber : index + 1}`}
+                  coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
+                  title={bus.routeShortName}
                   description={bus.destination ? `Destination: ${bus.destination}` : "Nearby Bus"}
                 >
                   <Image
@@ -405,14 +466,43 @@ export default function MapPage() {
         ) : (
           showBuses && nearbyBuses.length > 0 && (
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>Nearby Buses</Text>
-              {nearbyBuses.map((bus: any, index: number) => (
-                <View key={index} style={styles.busRow}>
-                  <Text style={styles.busText}>
-                    Bus {bus.busNumber ? bus.busNumber : index + 1} {bus.destination ? `- Destination: ${bus.destination}` : ""}
+              <View style={styles.headerRow}>
+                <Text style={styles.sectionHeader}>Nearby Buses</Text>
+                <TouchableOpacity onPress={() => setIsNearbyBusesExpanded(prev => !prev)}>
+                  <Text style={styles.dropdownArrow}>
+                    {isNearbyBusesExpanded ? "▲" : "▼"}
                   </Text>
-                </View>
-              ))}
+                </TouchableOpacity>
+              </View>
+              {isNearbyBusesExpanded && (
+                <>
+                  {nearbyBuses.map((bus: any, index: number) => (
+                    <View key={index} style={styles.busRow}>
+                      <TouchableOpacity
+                        style={styles.checkbox}
+                        onPress={() => {
+                          setSelectedBuses(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(bus.vehicleId)) newSet.delete(bus.vehicleId);
+                            else newSet.add(bus.vehicleId);
+                            return newSet;
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name={selectedBuses.has(bus.vehicleId) ? "checkbox" : "square-outline"}
+                          size={24}
+                          color="#007AFF"
+                        />
+                      </TouchableOpacity>
+                      <Text style={styles.busText}>
+                        {bus.routeShortName} - {bus.routeLongName}
+                      </Text>
+                    </View>
+                  ))}
+                  <CustomButton title="Save Selected Buses" onPress={saveSelectedBuses} />
+                </>
+              )}
             </View>
           )
         )}
@@ -421,33 +511,44 @@ export default function MapPage() {
         ) : (
           nearbyStops.length > 0 && (
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>Nearby Bus Stops</Text>
-              {nearbyStops.map((stop: any, index: number) => (
-                <View key={index} style={styles.busStopRow}>
-                  <Image source={{ uri: stop.icon }} style={styles.busStopIcon} />
-                  <Text style={styles.busStopText}>
-                    {stop.name} {stop.vicinity ? `- ${stop.vicinity}` : ""}
+              <View style={styles.headerRow}>
+                <Text style={styles.sectionHeader}>Nearby Bus Stops</Text>
+                <TouchableOpacity onPress={() => setIsNearbyStopsExpanded(prev => !prev)}>
+                  <Text style={styles.dropdownArrow}>
+                    {isNearbyStopsExpanded ? "▲" : "▼"}
                   </Text>
-                  <TouchableOpacity
-                    style={styles.checkbox}
-                    onPress={() => {
-                      setSelectedBusStops(prev => {
-                        const newSet = new Set(prev);
-                        if (newSet.has(stop.name)) newSet.delete(stop.name);
-                        else newSet.add(stop.name);
-                        return newSet;
-                      });
-                    }}
-                  >
-                    <Ionicons
-                      name={selectedBusStops.has(stop.name) ? "checkbox" : "square-outline"}
-                      size={24}
-                      color="#007AFF"
-                    />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <CustomButton title="Save Selected Stops" onPress={saveSelectedBusStops} />
+                </TouchableOpacity>
+              </View>
+              {isNearbyStopsExpanded && (
+                <>
+                  {nearbyStops.map((stop: any, index: number) => (
+                    <View key={index} style={styles.busStopRow}>
+                      <Image source={{ uri: stop.icon }} style={styles.busStopIcon} />
+                      <Text style={styles.busStopText}>
+                        {stop.name} {stop.vicinity ? `- ${stop.vicinity}` : ""}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.checkbox}
+                        onPress={() => {
+                          setSelectedBusStops(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(stop.name)) newSet.delete(stop.name);
+                            else newSet.add(stop.name);
+                            return newSet;
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name={selectedBusStops.has(stop.name) ? "checkbox" : "square-outline"}
+                          size={24}
+                          color="#007AFF"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <CustomButton title="Save Selected Stops" onPress={saveSelectedBusStops} />
+                </>
+              )}
             </View>
           )
         )}
@@ -461,6 +562,29 @@ export default function MapPage() {
                   {stop.name} - {stop.location}
                 </Text>
                 <TouchableOpacity onPress={() => removeBusStop(stop.name)}>
+                  <Ionicons name="trash" size={20} color="red" style={{ marginLeft: 10 }} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+        {savedBuses.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.headerRow}>
+              <Text style={styles.sectionHeader}>Saved Buses</Text>
+              <TouchableOpacity onPress={() => setIsSavedBusesExpanded(prev => !prev)}>
+                <Text style={styles.dropdownArrow}>
+                  {isSavedBusesExpanded ? "▲" : "▼"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {isSavedBusesExpanded && savedBuses.map((bus: any, index: number) => (
+              <View key={index} style={styles.busRow}>
+                <Ionicons name="bus" size={20} color="#f5b301" style={{ marginRight: 6 }} />
+                <Text style={styles.busText}>
+                  {bus.route} - {bus.name}
+                </Text>
+                <TouchableOpacity onPress={() => removeBus(bus.id)}>
                   <Ionicons name="trash" size={20} color="red" style={{ marginLeft: 10 }} />
                 </TouchableOpacity>
               </View>
@@ -565,11 +689,16 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   sectionHeader: {
     fontSize: 20,
     fontWeight: '700',
     color: '#333',
-    marginBottom: 10,
   },
   routeHeaderContainer: {
     flexDirection: 'row',
@@ -637,6 +766,8 @@ const styles = StyleSheet.create({
   },
   busRow: {
     paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   busText: {
     fontSize: 16,
