@@ -61,5 +61,12 @@ CREATE TABLE Photo (
     data VARBINARY(MAX)
 );
 
+CREATE TABLE favourite_providers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    provider_id INT NOT NULL,
+    user_id INT NOT NULL,
+    FOREIGN KEY (provider_id) REFERENCES TransportProviders(id),
+    FOREIGN KEY (user_id) REFERENCES PersonalDetails(id)
+);
 
 
