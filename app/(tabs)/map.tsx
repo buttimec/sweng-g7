@@ -42,6 +42,13 @@ export default function MapPage() {
   const [isNearbyBusesExpanded, setIsNearbyBusesExpanded] = useState<boolean>(true);
   const [isSavedBusesExpanded, setIsSavedBusesExpanded] = useState<boolean>(true);
   const [savedRoutes, setSavedRoutes] = useState<any[]>([]);
+  const [isFavouriteStopsExpanded, setIsFavouriteStopsExpanded] = useState<boolean>(true);
+
+  const [selectedFavouriteStop, setSelectedFavouriteStop] = useState<{
+    latitude: number;
+    longitude: number;
+    name: string;
+  } | null>(null);
 
   const persistState = async (state: PersistedState) => {
     try {
@@ -222,6 +229,24 @@ export default function MapPage() {
     }
   };
 
+  // Parse the stops location string to display a marker of their fav.
+  const handleSavedBusStopPress = (stop: any) => {
+    if (stop.location) {
+      const parts = stop.location.split(',');
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setSelectedFavouriteStop({ latitude: lat, longitude: lng, name: stop.name });
+        setMapRegion({
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      }
+    }
+  };
+
   const clearRecentDestinations = () => {
     setRecentDestinations([]);
   };
@@ -398,6 +423,16 @@ export default function MapPage() {
             }
             return null;
           })}
+          {selectedFavouriteStop && (
+            <Marker
+              coordinate={{
+                latitude: selectedFavouriteStop.latitude,
+                longitude: selectedFavouriteStop.longitude,
+              }}
+              title={selectedFavouriteStop.name}
+              description="Saved Bus Stop"
+            />
+          )}
         </MapView>
       </View>
       <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -592,17 +627,26 @@ export default function MapPage() {
         )}
         {favouriteStops.length > 0 && (
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Saved Bus Stops</Text>
-            {favouriteStops.map((stop: any, index: number) => (
-              <View key={index} style={styles.busStopRow}>
-                <Ionicons name="star" size={20} color="#f5b301" style={{ marginRight: 6 }} />
-                <Text style={styles.busStopText}>
-                  {stop.name} - {stop.location}
+            <View style={styles.headerRow}>
+              <Text style={styles.sectionHeader}>Saved Bus Stops</Text>
+              <TouchableOpacity onPress={() => setIsFavouriteStopsExpanded(prev => !prev)}>
+                <Text style={styles.dropdownArrow}>
+                  {isFavouriteStopsExpanded ? "▲" : "▼"}
                 </Text>
-                <TouchableOpacity onPress={() => removeBusStop(stop.name)}>
-                  <Ionicons name="trash" size={20} color="red" style={{ marginLeft: 10 }} />
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
+            </View>
+            {isFavouriteStopsExpanded && favouriteStops.map((stop: any, index: number) => (
+              <TouchableOpacity key={index} onPress={() => handleSavedBusStopPress(stop)}>
+                <View style={styles.busStopRow}>
+                  <Ionicons name="star" size={20} color="#f5b301" style={{ marginRight: 6 }} />
+                  <Text style={styles.busStopText}>
+                    {stop.name} - {stop.location}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeBusStop(stop.name)}>
+                    <Ionicons name="trash" size={20} color="red" style={{ marginLeft: 10 }} />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
