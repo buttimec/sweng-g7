@@ -27,7 +27,7 @@ CREATE TABLE BusStop (
 CREATE TABLE Routes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50),
-    startName INT,
+    startName VARCHAR(50),
     startLocation VARCHAR(50) 
 );
 
@@ -44,7 +44,7 @@ CREATE TABLE PersonalDetails (
 CREATE TABLE RoutesFavourites (
     route_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50),
-    startName INT,
+    startName VARCHAR(50),
     startLocation VARCHAR(50) 
 );
 
