@@ -17,14 +17,13 @@ public class RouteFaveController {
     @Autowired
     private RouteFaveRepository routeFaveRepository;
 
-    // Get all favourite routes    GET http://localhost:8080/api/busstops
+    // Get all favourite routes 
     @GetMapping
     public List<RouteFave> getAll() {
         return routeFaveRepository.findAll();
     }
 
 
-    // Get a route by ID
     @GetMapping("/{id}")
     public ResponseEntity<RouteFave> getById(@PathVariable Long id) {
         Optional<RouteFave> stop = routeFaveRepository.findById(id);
@@ -38,10 +37,6 @@ public class RouteFaveController {
         return routeFaveRepository.save(route);
     }
 
-    // {
-    //     "name": "Pearse Street Stop",
-    //     "location": "53.3438,-6.2507"
-    // }
       
 
     // Update an existing route by ID

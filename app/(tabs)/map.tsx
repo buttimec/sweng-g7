@@ -41,6 +41,7 @@ export default function MapPage() {
   const [isNearbyStopsExpanded, setIsNearbyStopsExpanded] = useState<boolean>(true);
   const [isNearbyBusesExpanded, setIsNearbyBusesExpanded] = useState<boolean>(true);
   const [isSavedBusesExpanded, setIsSavedBusesExpanded] = useState<boolean>(true);
+  const [savedRoutes, setSavedRoutes] = useState<any[]>([]);
 
   const persistState = async (state: PersistedState) => {
     try {
@@ -90,11 +91,25 @@ export default function MapPage() {
       console.error("Error fetching saved buses:", err);
     }
   };
+  const fetchSavedRoutes = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/FaveRoutes`);
+      if (res.ok) {
+        const data = await res.json();
+        setSavedRoutes(data);
+      } else {
+        console.error("Error fetching saved routes:", res.statusText);
+      }
+    } catch (error) {
+      console.error("Error fetching saved routes:", error);
+    }
+  };
 
   useEffect(() => {
     loadPersistedState();
     fetchFavouriteStops();
     fetchSavedBuses();
+    fetchSavedRoutes();
   }, []);
 
   useEffect(() => {
@@ -117,9 +132,14 @@ export default function MapPage() {
     addr: string
   ): Promise<{ lat: number; lng: number, placeId: string } | null> => {
     try {
-      console.log("Geocoding address:", addr);
+      let query = addr;
+      // If the address is too generic (e.g. "College"), add context
+      if (addr.trim().toLowerCase() === "college") {
+        query = "College, Dublin, Ireland";
+      }
+      console.log("Geocoding address:", query);
       const response = await fetch(
-        `${BACKEND_URL}/geocode?address=${encodeURIComponent(addr)}`
+        `${BACKEND_URL}/geocode?address=${encodeURIComponent(query)}`
       );
       if (!response.ok) {
         console.error("Geocoding error:", response.statusText);
@@ -129,10 +149,10 @@ export default function MapPage() {
       if (data[0] && data[0].geometry && data[0].geometry.location) {
         const { lat, lng } = data[0].geometry.location;
         const placeId = data[0].placeId;
-        console.log("Coordinates for", addr, ":", lat, lng);
+        console.log("Coordinates for", query, ":", lat, lng);
         return { lat, lng, placeId };
       } else {
-        console.error("No coordinates found for", addr);
+        console.error("No coordinates found for", query);
         return null;
       }
     } catch (error) {
@@ -188,6 +208,7 @@ export default function MapPage() {
     }
   };
 
+  // When a recent or saved destination is pressed, update destination and fetch routes
   const handleRecentPress = async (dest: string) => {
     setDestination(dest);
     const coords = await getDestinationCoordinates(dest);
@@ -261,8 +282,8 @@ export default function MapPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(selected.map(bus => ({
-          name: bus.routeLongName,    
-          route: bus.routeShortName,  
+          name: bus.routeLongName,
+          route: bus.routeShortName,
         }))),
       });
       if (response.ok) {
@@ -397,6 +418,23 @@ export default function MapPage() {
             }}
           />
         </View>
+        {savedRoutes.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.headerRow}>
+              <Text style={styles.sectionHeader}>Saved Routes</Text>
+            </View>
+            {savedRoutes.map((route: any, index: number) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.savedRouteItem}
+                onPress={() => handleRecentPress(route.name)}
+              >
+                <Text style={styles.savedRouteText}>{route.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {recentDestinations.length > 0 && (
           <View style={styles.recentContainer}>
             <View style={styles.recentHeaderContainer}>
@@ -775,6 +813,17 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     marginLeft: 10,
+  },
+  savedRouteItem: {
+    backgroundColor: '#e9ecef',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  savedRouteText: {
+    fontSize: 16,
+    color: '#007AFF',
   },
 });
 

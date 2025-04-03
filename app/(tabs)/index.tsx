@@ -36,6 +36,9 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // NEW: Personal details fetched from backend for context (e.g. user's name)
+  const [personalDetails, setPersonalDetails] = useState({ name: '', email: '' });
+
   useEffect(() => {
     const requestLocation = async () => {
       console.log("Requesting location permissions...");
@@ -61,6 +64,26 @@ export default function Index() {
     };
     requestLocation();
   }, [setUserLocation]);
+
+  // NEW: Fetch personal details
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/users/1`);
+        console.log('User details status:', response.status);
+        if (response.ok) {
+          const data = await response.json();
+          setPersonalDetails(data);
+        } else {
+          console.warn(`User not found or error: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error.message);
+      }
+    };
+
+    fetchUserDetails();
+  }, []);
 
   // Fetch saved buses 
   const fetchSavedBuses = async () => {
@@ -142,7 +165,9 @@ export default function Index() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.welcomeSection}>
-        <Text style={styles.header}>Welcome to TrinityTransit!</Text>
+        <Text style={styles.header}>
+          Welcome to TrinityTransit{personalDetails.name ? `, ${personalDetails.name}` : ''}!
+        </Text>
         <Text style={styles.subHeader}>Your Transport Timetabling App</Text>
         {!hasPermissions && (
           <Text style={styles.permissionWarning}>Location permissions not granted.</Text>
@@ -187,7 +212,10 @@ export default function Index() {
                 <Text style={styles.savedBusText}>
                   {bus.name} - {bus.route}
                 </Text>
-                <Ionicons name="checkmark-circle" size={24} color="green" />
+                <View style={styles.onTimeContainer}>
+                  <Ionicons name="checkmark-circle" size={24} color="green" />
+                  <Text style={styles.onTimeText}>On Time</Text>
+                </View>
               </View>
             ))
           ) : (
@@ -214,11 +242,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subHeader: {
     fontSize: 18,
     color: '#666',
     marginBottom: 8,
+    textAlign: 'center',
   },
   permissionWarning: {
     color: 'red',
@@ -302,6 +332,17 @@ const styles = StyleSheet.create({
   savedBusText: {
     fontSize: 16,
     color: '#333',
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+  onTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  onTimeText: {
+    marginLeft: 5,
+    fontSize: 16,
+    color: 'green',
   },
 });
 

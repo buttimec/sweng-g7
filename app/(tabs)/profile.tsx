@@ -13,11 +13,8 @@ export default function ProfileScreen() {
     email: ''
   });
 
-  // Dummy saved trips
-  const [savedTrips] = useState([
-    { id: 'trip1', title: 'Trip to Dublin', date: '2023-10-20' },
-    { id: 'trip2', title: 'Trip to Cork', date: '2023-11-05' },
-  ]);
+  // Saved routes fetched from backend
+  const [savedTrips, setSavedTrips] = useState([]);
 
   // Dummy preferred transport providers
   const [transportProviders] = useState([
@@ -33,20 +30,39 @@ export default function ProfileScreen() {
       try {
         const response = await fetch(`${BACKEND_URL}/api/users/1`);
         console.log('Status:', response.status);
-  
+
         if (!response.ok) {
           console.warn(`User not found or error: ${response.status}`);
           return; // Exit early
         }
-  
+
         const data = await response.json();
         setPersonalDetails(data);
       } catch (error) {
         console.error('Error fetching user:', error.message);
       }
     };
-  
+
     fetchUserDetails();
+  }, []);
+
+  // Fetch saved routes from backend
+  useEffect(() => {
+    const fetchSavedRoutes = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/FaveRoutes`);
+        if (response.ok) {
+          const data = await response.json();
+          setSavedTrips(data);
+        } else {
+          console.warn(`Error fetching saved routes: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching saved routes:', error.message);
+      }
+    };
+
+    fetchSavedRoutes();
   }, []);
 
   return (
@@ -71,16 +87,14 @@ export default function ProfileScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>Saved Trips</Text>
+          <Text style={styles.sectionHeader}>Saved Routes</Text>
           <TouchableOpacity onPress={() => router.push('/edit/savedTrips')}>
             <Ionicons name="create-outline" size={20} color="#007AFF" />
           </TouchableOpacity>
         </View>
         {savedTrips.map((trip) => (
           <View key={trip.id} style={styles.itemRow}>
-            <Text style={styles.itemText}>
-              {trip.title} - {trip.date}
-            </Text>
+            <Text style={styles.itemText}>{trip.name}</Text>
           </View>
         ))}
       </View>
