@@ -6,7 +6,13 @@ services:
     restart: always
     container_name: database
     environment:
-      MYSQL_DATABASE : 'trinity_transit'
+      MYSQL_DATABASE: 'trinity_transit'
       MYSQL_ROOT_PASSWORD: 'root'
     ports:
       - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql  # Persistent storage for MySQL
+      - ./database/trinity_transit.sql:/docker-entrypoint-initdb.d/trinity_transit.sql  # Ensure SQL file runs on first start
+
+volumes:
+  mysql_data:

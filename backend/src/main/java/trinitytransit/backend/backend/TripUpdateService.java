@@ -15,7 +15,6 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
 
 @Service
 public class TripUpdateService {
@@ -23,7 +22,7 @@ public class TripUpdateService {
     private static final String API_URL = "https://api.nationaltransport.ie/gtfsr/v2/TripUpdates?format=json";
     private static final String API_KEY = "9b70ea23a4a94ba68a7ebba3fadcd818";
 
-    private static final String[] TRANSPORTATION_TYPES = { "Dublin_Bus", "Bus_Eireann", "Irish_Rail", "Luas" };
+    private static final String[] TRANSPORTATION_TYPES = { "GTFS_Dublin_Bus", "GTFS_Bus_Eireann", "GTFS_Irish_Rail", "GTFS_LUAS" };
     private Map<String, String> routeShortNames = new HashMap<>();
     private Map<String, String> stopNames = new HashMap<>();
     private Map<String, String> transportationMapping = new HashMap<>();

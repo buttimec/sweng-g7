@@ -1,33 +1,78 @@
-// app/profile.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BACKEND_URL } from '@/config';
 
 export default function ProfileScreen() {
   const router = useRouter();
 
-  // Dummy personal details
-  const [personalDetails] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
+  // Real personal details from backend
+  const [personalDetails, setPersonalDetails] = useState({
+    name: '',
+    email: ''
   });
-  // Dummy saved trips
-  const [savedTrips] = useState([
-    { id: 'trip1', title: 'Trip to Dublin', date: '2023-10-20' },
-    { id: 'trip2', title: 'Trip to Cork', date: '2023-11-05' },
-  ]);
+
+  // Saved routes fetched from backend
+  const [savedTrips, setSavedTrips] = useState([]);
+
   // Dummy preferred transport providers
   const [transportProviders] = useState([
     { id: 'prov1', name: 'Provider A' },
     { id: 'prov2', name: 'Provider B' },
   ]);
-  // Dummy profile image URL
+
+  // Dummy profile image
   const [profileImage] = useState('https://via.placeholder.com/150');
+
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/users/1`);
+        console.log('Status:', response.status);
+
+        if (!response.ok) {
+          console.warn(`User not found or error: ${response.status}`);
+          return; // Exit early
+        }
+
+        const data = await response.json();
+        setPersonalDetails(data);
+      } catch (error) {
+        console.error('Error fetching user:', error.message);
+      }
+    };
+
+    fetchUserDetails();
+  }, []);
+
+  // Fetch saved routes from backend
+  useEffect(() => {
+    const fetchSavedRoutes = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/FaveRoutes`);
+        if (response.ok) {
+          const data = await response.json();
+          setSavedTrips(data);
+        } else {
+          console.warn(`Error fetching saved routes: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching saved routes:', error.message);
+      }
+    };
+
+    fetchSavedRoutes();
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
-      
+      <View style={styles.profileHeader}>
+        <Image source={{ uri: profileImage }} style={styles.profileImage} />
+        <TouchableOpacity style={styles.editPhotoButton}>
+          <Text style={styles.editPhotoButtonText}>Change Photo</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
@@ -42,16 +87,14 @@ export default function ProfileScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeader}>Saved Trips</Text>
+          <Text style={styles.sectionHeader}>Saved Routes</Text>
           <TouchableOpacity onPress={() => router.push('/edit/savedTrips')}>
             <Ionicons name="create-outline" size={20} color="#007AFF" />
           </TouchableOpacity>
         </View>
         {savedTrips.map((trip) => (
           <View key={trip.id} style={styles.itemRow}>
-            <Text style={styles.itemText}>
-              {trip.title} - {trip.date}
-            </Text>
+            <Text style={styles.itemText}>{trip.name}</Text>
           </View>
         ))}
       </View>

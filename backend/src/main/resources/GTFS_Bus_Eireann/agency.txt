@@ -1,0 +1,3 @@
+agency_id,agency_name,agency_url,agency_timezone
+7778008,Bus Éireann Waterford,https://www.buseireann.ie,Europe/London
+7778020,Bus Éireann,https://buseireann.ie,Europe/London
