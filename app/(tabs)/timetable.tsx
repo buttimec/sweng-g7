@@ -12,18 +12,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/config';
+import { useApiCacheStore, TripUpdate } from "@/store/apiCacheStore";
 
 const API_URL = `${BACKEND_URL}/api/trip-updates`;
 
-// ✅ Define TypeScript Interface for the API response
-interface TripUpdate {
-  routeShortName: string;
-  totalDelay: number; // Delay is in seconds from API
-  stopName: string;
-  transportation: string;
-}
-
-// ✅ Convert seconds to minutes for display
+// Convert seconds to minutes for display
 const formatDelay = (seconds: number): string => {
   if (seconds < 60) return `< 1 min`;
   return `${Math.round(seconds / 60)} min`;
@@ -36,46 +29,55 @@ const Timetable: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Fetch trip updates
+  // API cache store for trip updates
+  const { tripUpdates, tripUpdatesTimestamp, setTripUpdates } = useApiCacheStore();
+  const CACHE_TTL = 60000; // Cache TTL in milliseconds (60 seconds)
+
+  // Fetch trip updates using the API cache store
   const fetchTimetable = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(API_URL, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      const now = Date.now();
+      if (tripUpdates && tripUpdatesTimestamp && now - tripUpdatesTimestamp < CACHE_TTL) {
+        console.log("Using cached trip updates");
+        setTimetable(tripUpdates);
+      } else {
+        const response = await fetch(API_URL, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        const data: TripUpdate[] = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid API response format - expected an array.");
+        }
+        setTimetable(data);
+        setTripUpdates(data, now); // Update the cache in the API store
+        setError(null);
       }
-      const data: TripUpdate[] = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error("Invalid API response format - expected an array.");
-      }
-      setTimetable(data);
-      setError(null);
     } catch (err) {
       setError(`❌ Fetch error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [tripUpdates, tripUpdatesTimestamp, setTripUpdates]);
 
-  // ✅ useEffect to fetch timetable on mount
   useEffect(() => {
     fetchTimetable();
   }, [fetchTimetable]);
 
-  // ✅ Pull-to-refresh functionality
   const onRefresh = () => {
     setRefreshing(true);
     fetchTimetable();
   };
 
-  // ✅ Manual trigger for debugging
+  // Manual trigger for debugging
   const debugFetch = () => {
     fetchTimetable();
   };
@@ -139,9 +141,7 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     backgroundColor: '#F8F9FA',
   },
-  backArrow: {
-    
-  },
+  backArrow: {},
   container: {
     flexGrow: 1,
     padding: 16,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
-    elevation: 3, 
+    elevation: 3,
     borderLeftWidth: 6,
     borderColor: '#007AFF',
   },

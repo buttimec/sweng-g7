@@ -11,45 +11,31 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocationStore } from "@/store";
 import { BACKEND_URL } from '@/config';
-
-interface TripUpdate {
-  routeShortName: string;
-  totalDelay: number; // delay in seconds
-  stopName: string;
-  transportation: string;
-}
+import { useApiCacheStore, TripUpdate } from "@/store/apiCacheStore"; // adjust the path accordingly
 
 export default function Index() {
-  const { setUserLocation, userLocation } = useLocationStore();
+  const { setUserLocation, userLatitude, userLongitude } = useLocationStore();
+  const { tripUpdates, tripUpdatesTimestamp, setTripUpdates, nearbyBuses: cachedNearbyBuses, nearbyBusesTimestamp, setNearbyBuses: cacheNearbyBuses } = useApiCacheStore();
   const [hasPermissions, setHasPermissions] = useState(false);
-
-  // Sample data for nearby departures
-  const [departures] = useState([
-    { id: '1', route: 'Route 1', departureTime: '12:05 PM' },
-    { id: '2', route: 'Route 2', departureTime: '12:15 PM' },
-    { id: '3', route: 'Route 3', departureTime: '12:30 PM' },
-  ]);
-
+  const [nearbyBuses, setNearbyBuses] = useState<any[]>([]);
   const [savedBuses, setSavedBuses] = useState<any[]>([]);
-  const [tripUpdates, setTripUpdates] = useState<TripUpdate[]>([]);
   const [loadingTripUpdates, setLoadingTripUpdates] = useState<boolean>(true);
+  const [busesLoading, setBusesLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  // NEW: Personal details fetched from backend for context (e.g. user's name)
   const [personalDetails, setPersonalDetails] = useState({ name: '', email: '' });
 
   useEffect(() => {
     const requestLocation = async () => {
       console.log("Requesting location permissions...");
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setHasPermissions(false);
         console.error("Location permission not granted");
         return;
       }
       setHasPermissions(true);
-      let location = await Location.getCurrentPositionAsync();
+      const location = await Location.getCurrentPositionAsync();
       const address = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -62,10 +48,12 @@ export default function Index() {
       console.log("User location set to:", loc);
       setUserLocation(loc);
     };
-    requestLocation();
-  }, [setUserLocation]);
+    if (!userLatitude || !userLongitude) {
+      requestLocation();
+    }
+  }, [setUserLocation, userLatitude, userLongitude]);
 
-  // NEW: Fetch personal details
+  // Fetch personal details
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
@@ -77,15 +65,14 @@ export default function Index() {
         } else {
           console.warn(`User not found or error: ${response.status}`);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching user:', error.message);
       }
     };
-
     fetchUserDetails();
   }, []);
 
-  // Fetch saved buses 
+  // Fetch saved buses
   const fetchSavedBuses = async () => {
     console.log("Fetching saved buses...");
     try {
@@ -102,10 +89,17 @@ export default function Index() {
     }
   };
 
-  // Fetch trip updates from gtfs
+  // Fetch trip updates from gtfs or preferrably cache
   const fetchTripUpdates = useCallback(async () => {
+    const now = Date.now();
+    const cacheTTL = 60000; // Cache valid for 60 seconds
+    if (tripUpdates && tripUpdatesTimestamp && now - tripUpdatesTimestamp < cacheTTL) {
+      console.log("Using cached trip updates");
+      setLoadingTripUpdates(false);
+      return;
+    }
     setLoadingTripUpdates(true);
-    console.log("Fetching trip updates...");
+    console.log("Fetching trip updates from API...");
     try {
       const response = await fetch(`${BACKEND_URL}/api/trip-updates`, {
         headers: {
@@ -120,7 +114,7 @@ export default function Index() {
       }
       const data: TripUpdate[] = await response.json();
       console.log("Trip updates data:", data);
-      setTripUpdates(data);
+      setTripUpdates(data, now); // update cache store
       setError(null);
     } catch (err) {
       setError(`Fetch error: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -130,34 +124,86 @@ export default function Index() {
       setRefreshing(false);
       console.log("Finished fetching trip updates");
     }
-  }, []);
+  }, [tripUpdates, tripUpdatesTimestamp, setTripUpdates]);
+
+  // Fetch nearby buses using cache if possible
+  const fetchNearbyBuses = async (attempt = 1) => {
+    if (userLatitude && userLongitude) {
+      const now = Date.now();
+      const cacheTTL = 60000; // Cache valid for 60 seconds
+      if (cachedNearbyBuses && nearbyBusesTimestamp && (now - nearbyBusesTimestamp < cacheTTL)) {
+        console.log("Using cached nearby buses");
+        setNearbyBuses(cachedNearbyBuses);
+        return;
+      }
+      setBusesLoading(true);
+      console.log(`Fetching nearby buses from: ${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`);
+      try {
+        const response = await fetch(
+          `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Nearby buses:", data);
+          const limitedBuses = data.slice(0, 20); // show max 20
+          setNearbyBuses(limitedBuses);
+          cacheNearbyBuses(limitedBuses, now);
+        } else {
+          console.error("Error fetching nearby buses:", response.status, response.statusText);
+          if (attempt < 3) {
+            console.log(`Retrying fetchNearbyBuses, attempt ${attempt + 1}...`);
+            setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
+          }
+        }
+      } catch (error: any) {
+        console.error("Error fetching nearby buses:", error, JSON.stringify(error));
+        if (attempt < 3) {
+          console.log(`Retrying fetchNearbyBuses, attempt ${attempt + 1}...`);
+          setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
+        }
+      } finally {
+        setBusesLoading(false);
+      }
+    } else {
+      console.log("User location is not set.");
+    }
+  };
 
   useEffect(() => {
-    if (userLocation) {
-      console.log("User location available; fetching saved buses and trip updates.");
+    if (userLatitude && userLongitude) {
+      console.log("User location available; fetching saved buses, trip updates, and nearby buses.");
       fetchSavedBuses();
       fetchTripUpdates();
+      fetchNearbyBuses();
     } else {
       console.log("Waiting for user location...");
     }
-  }, [userLocation, fetchTripUpdates]);
+  }, [userLatitude, userLongitude, fetchTripUpdates]);
 
   const onRefresh = () => {
     setRefreshing(true);
+    // Clear cached timestamp to force a new fetch - this needs optimisation, GTFS is very limited in number of requests
+    setTripUpdates(null, 0);
     fetchSavedBuses();
     fetchTripUpdates();
+    fetchNearbyBuses();
   };
 
-  const formatDelay = (seconds: number): string => {
-    if (seconds < 60) return `< 1 min`;
-    return `${Math.round(seconds / 60)} min`;
+  // Helper: Format time from "HH:mm:ss" to "h:mm AM/PM"
+  const formatTime = (timeString: string) => {
+    const [hour, minute] = timeString.split(':');
+    let hourNum = parseInt(hour, 10);
+    const ampm = hourNum >= 12 ? 'PM' : 'AM';
+    hourNum = hourNum % 12;
+    hourNum = hourNum ? hourNum : 12;
+    return `${hourNum}:${minute} ${ampm}`;
   };
 
   // Filter trip updates to only include those matching a saved bus.
   const savedBusRoutes = savedBuses.map(bus => bus.route);
-  const filteredUpdates = tripUpdates.filter(update =>
-    savedBusRoutes.includes(update.routeShortName)
-  );
+  const filteredUpdates = tripUpdates
+    ? tripUpdates.filter(update => savedBusRoutes.includes(update.routeShortName))
+    : [];
 
   return (
     <ScrollView
@@ -169,24 +215,26 @@ export default function Index() {
           Welcome to TrinityTransit{personalDetails.name ? `, ${personalDetails.name}` : ''}!
         </Text>
         <Text style={styles.subHeader}>Your Transport Timetabling App</Text>
-        {!hasPermissions && (
-          <Text style={styles.permissionWarning}>Location permissions not granted.</Text>
-        )}
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardHeader}>Nearby Departures</Text>
-        {departures.map((dep) => (
-          <View key={dep.id} style={styles.departureItem}>
-            <Text style={styles.departureText}>
-              {dep.route} - {dep.departureTime}
-            </Text>
-          </View>
-        ))}
+        {nearbyBuses.length > 0 ? (
+          nearbyBuses.map(bus => (
+            <View key={bus.vehicleId} style={styles.departureItem}>
+              <Text style={styles.departureText}>
+                {formatTime(bus.startTime)} - {bus.routeLongName} ({bus.routeShortName})
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noData}>No nearby departures available.</Text>
+        )}
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardHeader}>Refresh for Latest Updates On Saved Buses</Text>
+        <Text style={styles.cardHeader}>Latest Updates On Saved Buses</Text>
+        <Text onPress={fetchTripUpdates} style={styles.refreshButton}>Refresh Trip Updates</Text>
         {loadingTripUpdates ? (
           <ActivityIndicator size="small" color="#007AFF" />
         ) : error ? (
@@ -201,7 +249,7 @@ export default function Index() {
                 🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
               </Text>
               <Text style={styles.delayText}>
-                ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
+                ⏳ Delay: <Text style={styles.bold}>{formatTime(item.startTime)}</Text>
               </Text>
             </View>
           ))
@@ -279,6 +327,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  noData: {
+    textAlign: 'center',
+    fontSize: 18,
+    color: '#555',
+    marginTop: 20,
+  },
   updateCard: {
     backgroundColor: '#ffffff',
     padding: 12,
@@ -302,11 +356,6 @@ const styles = StyleSheet.create({
     color: '#FF5733',
     marginBottom: 5,
   },
-  transportationText: {
-    fontSize: 16,
-    color: '#28A745',
-    marginBottom: 5,
-  },
   bold: {
     fontWeight: 'bold',
   },
@@ -314,12 +363,6 @@ const styles = StyleSheet.create({
     color: 'red',
     fontSize: 16,
     textAlign: 'center',
-  },
-  noData: {
-    textAlign: 'center',
-    fontSize: 18,
-    color: '#555',
-    marginTop: 20,
   },
   savedBusRow: {
     flexDirection: 'row',
@@ -343,6 +386,12 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 16,
     color: 'green',
+  },
+  refreshButton: {
+    fontSize: 16,
+    color: '#007AFF',
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
 
