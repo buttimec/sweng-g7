@@ -53,9 +53,9 @@ public class TripUpdateService {
                     transportationMapping.put(parts[0], transport); // route_id -> transportation type
                 }
             }
-            System.out.println("✅ Loaded route short names from " + transport + ": " + routeShortNames.size());
+            System.out.println("Loaded route short names from " + transport + ": " + routeShortNames.size());
         } catch (IOException e) {
-            System.out.println("❌ Error reading " + filePath + ": " + e.getMessage());
+            System.out.println("Error reading " + filePath + ": " + e.getMessage());
         }
     }
 
@@ -77,26 +77,23 @@ public class TripUpdateService {
                     stopNames.put(parts[0], parts[2]); // stop_id -> stop_name
                 }
             }
-            System.out.println("✅ Loaded stop names from " + transport + ": " + stopNames.size());
+            System.out.println("Loaded stop names from " + transport + ": " + stopNames.size());
         } catch (IOException e) {
-            System.out.println("❌ Error reading " + filePath + ": " + e.getMessage());
+            System.out.println("Error reading " + filePath + ": " + e.getMessage());
         }
     }
 
 
     public List<TripUpdate> getTripUpdates() {
         try {
-            // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.set("x-api-key", API_KEY);
             headers.set("Accept", "application/json");
 
-            // Fetch data
             RestTemplate restTemplate = new RestTemplate();
             HttpEntity<String> entity = new HttpEntity<>(headers);
             ResponseEntity<TripUpdateResponse> response = restTemplate.exchange(API_URL, HttpMethod.GET, entity, TripUpdateResponse.class);
 
-            // Extract trip updates
             List<TripUpdateResponse.TripUpdateEntity> tripUpdateEntities = response.getBody().getEntity();
 
             if (tripUpdateEntities == null || tripUpdateEntities.isEmpty()) {
@@ -104,41 +101,39 @@ public class TripUpdateService {
                 return List.of();
             }
 
-            // Convert API response to our model and limit to 10 responses
             List<TripUpdate> processedUpdates = tripUpdateEntities.stream()
                     .map(this::mapToTripUpdate)
                     .filter(update -> update != null)
-                    .limit(20)
                     .collect(Collectors.toList());
 
             return processedUpdates;
 
         } catch (Exception e) {
-            System.out.println("❌ Error fetching trip updates: " + e.getMessage());
-            throw new RuntimeException("❌ Error fetching trip updates: " + e.getMessage());
+            System.out.println("Error fetching trip updates: " + e.getMessage());
+            throw new RuntimeException("Error fetching trip updates: " + e.getMessage());
         }
     }
 
     private TripUpdate mapToTripUpdate(TripUpdateResponse.TripUpdateEntity entity) {
         if (entity == null) {
-            System.out.println("⚠️ Warning: Received a null TripUpdateEntity!");
+            System.out.println("⚠Warning: Received a null TripUpdateEntity");
             return null;
         }
 
         TripUpdateResponse.TripUpdateEntity.TripUpdate tripUpdate = entity.getTripUpdate();
 
         if (tripUpdate == null) {
-            System.out.println("⚠️ Warning: TripUpdate is null for entity ID: " + entity.getId());
+            System.out.println("Warning: TripUpdate is null for entity ID: " + entity.getId());
             return null;
         }
 
         if (tripUpdate.getTrip() == null) {
-            System.out.println("⚠️ Warning: Trip data is missing for entity ID: " + entity.getId());
+            System.out.println("Warning: Trip data is missing for entity ID: " + entity.getId());
             return null;
         }
 
         if (tripUpdate.getStopUpdates() == null || tripUpdate.getStopUpdates().isEmpty()) {
-            System.out.println("⚠️ Warning: No stop updates found for trip ID: " + tripUpdate.getTrip().getTripId());
+            System.out.println("Warning: No stop updates found for trip ID: " + tripUpdate.getTrip().getTripId());
             return null;
         }
 
@@ -151,21 +146,17 @@ public class TripUpdateService {
                 ))
                 .collect(Collectors.toList());
 
-        // ✅ Get the last stop's departure delay (or arrival delay if departure is missing)
         TripUpdate.StopTimeUpdate lastStop = stopUpdates.isEmpty() ? null : stopUpdates.get(stopUpdates.size() - 1);
         int lastDelay = (lastStop != null && lastStop.getDepartureDelay() != 0) ? lastStop.getDepartureDelay() : (lastStop != null ? lastStop.getArrivalDelay() : 0);
         String lastStopId = (lastStop != null) ? lastStop.getStopId() : "Unknown";
 
-        // ✅ Fetch route short name and transportation type
         String routeShortName = routeShortNames.get(tripUpdate.getTrip().getRouteId());
         String transportation = transportationMapping.get(tripUpdate.getTrip().getRouteId());
 
-        // ✅ Fetch stop name
         String stopName = stopNames.get(lastStopId);
 
-        // ✅ Skip entity if routeShortName, stopName, or transportation is missing
         if (routeShortName == null || stopName == null || transportation == null) {
-            System.out.println("⚠️ Skipping entity: Missing data for Trip ID: " + tripUpdate.getTrip().getTripId());
+            System.out.println("Skipping entity: Missing data for Trip ID: " + tripUpdate.getTrip().getTripId());
             return null;
         }
 
@@ -183,7 +174,5 @@ public class TripUpdateService {
                 stopUpdates
         );
     }
-
-
 }
 
