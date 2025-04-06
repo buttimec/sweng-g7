@@ -187,7 +187,7 @@ export default function MapPage() {
             allRoutes.push({ routeIndex, instructions: routeInstructions });
           });
           setRoutes(allRoutes);
-          setSelectedRouteIndex(null);
+          setSelectedRouteIndex(0);
         } else {
           console.error("No routes found");
         }
@@ -485,55 +485,75 @@ export default function MapPage() {
             ))}
           </View>
         )}
+
         {routes.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.routeHeaderContainer}>
               <Text style={styles.sectionHeader}>
-                {selectedRouteIndex === null ? "Select a Route" : "Selected Route"}
+                {selectedRouteIndex === null ? "Select a Route" : "Selected Route: Route " + (selectedRouteIndex + 1)}
               </Text>
-              <TouchableOpacity onPress={() => setIsRoutePanelExpanded(prev => !prev)}>
-                <Text style={styles.dropdownArrow}>
-                  {isRoutePanelExpanded ? "▲" : "▼"}
-                </Text>
-              </TouchableOpacity>
             </View>
-            {isRoutePanelExpanded && (
-              selectedRouteIndex === null ? (
-                routes.map((routeSection, sectionIndex) => (
-                  <TouchableOpacity
-                    key={sectionIndex}
-                    style={styles.routeSummary}
-                    onPress={() => setSelectedRouteIndex(sectionIndex)}
-                  >
-                    <Text style={styles.routeTitle}>Route {routeSection.routeIndex + 1}</Text>
-                    <Text style={styles.routeSummaryText}>
-                      {routeSection.instructions[0]?.instruction.slice(0, 50)}...
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
+            {selectedRouteIndex === null ? (
+              routes.map((routeSection, sectionIndex) => (
+                <TouchableOpacity
+                  key={sectionIndex}
+                  style={styles.routeSummary}
+                  onPress={() => setSelectedRouteIndex(sectionIndex)}
+                >
+                  <Text style={styles.routeTitle}>
+                    Route {routeSection.routeIndex + 1}
+                  </Text>
+                  <Text style={styles.routeSummaryText}>
+                    {routeSection.instructions[0]?.instruction.slice(0, 50)}...
+                  </Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View>
                 <View>
-                  <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => setSelectedRouteIndex(null)}
-                  >
-                    <Text style={styles.backButtonText}>Back to Routes</Text>
-                  </TouchableOpacity>
-                  <View style={styles.routeDetail}>
-                    <Text style={styles.routeTitle}>
-                      Route {routes[selectedRouteIndex].routeIndex + 1} Details
-                    </Text>
-                    {routes[selectedRouteIndex].instructions.map((instruction: any) => (
-                      <Text key={instruction.id} style={styles.routeItem}>
-                        {instruction.instruction}
-                      </Text>
-                    ))}
-                  </View>
+                  <Text style={styles.routeTitle}>
+                    Route {routes[selectedRouteIndex].routeIndex + 1} Details
+                  </Text>
                 </View>
-              )
+                <View style={styles.routeDetail}>
+                  {routes[selectedRouteIndex].instructions.map((instruction: any) => (
+                    <Text key={instruction.id} style={styles.routeItem}>
+                      {instruction.instruction}
+                    </Text>
+                  ))}
+                </View>
+                {/* Navigation buttons container */}
+                <View style={styles.largeNavButtonContainer}>
+                  <TouchableOpacity
+                    //disabled={selectedRouteIndex === 0}
+                    onPress={() => { selectedRouteIndex === 0 ? setSelectedRouteIndex(routes.length - 1) : setSelectedRouteIndex(selectedRouteIndex - 1) }}
+                    style={[
+                      styles.largeNavButton
+                    ]}
+                  >
+                    <Text style={styles.largeNavButtonText}>Previous Route</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => { selectedRouteIndex === routes.length - 1 ? setSelectedRouteIndex(0) : setSelectedRouteIndex(selectedRouteIndex + 1) }}
+                    style={[
+                      styles.largeNavButton
+                    ]}
+                  >
+                    <Text style={styles.largeNavButtonText}>Next Route</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => setSelectedRouteIndex(null)}
+                >
+                  <Text style={styles.backButtonText}>To Routes List</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
+
         {busesLoading ? (
           <ActivityIndicator size="small" color="#007AFF" />
         ) : (
@@ -807,12 +827,35 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 8,
-    alignSelf: 'flex-start',
+    //alignSelf: 'flex-start',
+    flex: 1,
     marginBottom: 15,
+    marginHorizontal: 5
   },
   backButtonText: {
     color: '#fff',
     fontSize: 14,
+    textAlign: 'center',
+  },
+  largeNavButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 20,
+  },
+  largeNavButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    //alignSelf: 'flex-start',
+    flex: 1,
+    marginBottom: 15,
+    marginHorizontal: 5
+  },
+  largeNavButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center',
   },
   routeDetail: {
     backgroundColor: '#f1f3f5',
