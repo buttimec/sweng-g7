@@ -23,7 +23,7 @@ export default function ProfileScreen() {
   ]);
 
   // Dummy profile image
-  const [profileImage] = useState('https://via.placeholder.com/150');
+  const [profileImage, setProfileImage] = useState('https://picsum.photos/200/?random&t=' + Date.now());
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -69,7 +69,9 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.profileHeader}>
         <Image source={{ uri: profileImage }} style={styles.profileImage} />
-        <TouchableOpacity style={styles.editPhotoButton}>
+        <TouchableOpacity 
+        onPress={() => setProfileImage('https://picsum.photos/200/?random&t=' + Date.now())}
+        style={styles.editPhotoButton}>
           <Text style={styles.editPhotoButtonText}>Change Photo</Text>
         </TouchableOpacity>
       </View>
