@@ -6,6 +6,7 @@ import { BACKEND_URL } from '@/config';
 import { useLocationStore } from '@/store';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useApiCacheStore } from '@/store/apiCacheStore';
 
 const CustomButton = ({ title, onPress }: { title: string; onPress: () => void }) => (
   <TouchableOpacity style={styles.button} onPress={onPress}>
@@ -22,6 +23,7 @@ interface PersistedState {
 export default function MapPage() {
   const router = useRouter();
   const { userLatitude, userLongitude, setDestinationLocation } = useLocationStore();
+  const { nearbyBuses: cachedNearbyBuses, nearbyBusesTimestamp, setNearbyBuses: cacheNearbyBuses } = useApiCacheStore();
 
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [destination, setDestination] = useState("");
@@ -43,7 +45,6 @@ export default function MapPage() {
   const [isSavedBusesExpanded, setIsSavedBusesExpanded] = useState<boolean>(true);
   const [savedRoutes, setSavedRoutes] = useState<any[]>([]);
   const [isFavouriteStopsExpanded, setIsFavouriteStopsExpanded] = useState<boolean>(true);
-
   const [selectedFavouriteStop, setSelectedFavouriteStop] = useState<{
     latitude: number;
     longitude: number;
@@ -98,6 +99,7 @@ export default function MapPage() {
       console.error("Error fetching saved buses:", err);
     }
   };
+
   const fetchSavedRoutes = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/FaveRoutes`);
@@ -140,10 +142,7 @@ export default function MapPage() {
   ): Promise<{ lat: number; lng: number, placeId: string } | null> => {
     try {
       let query = addr;
-      // If the address is too generic (e.g. "College"), add context
-      if (addr.trim().toLowerCase() === "college") {
-        query = "College, Dublin, Ireland";
-      }
+      
       console.log("Geocoding address:", query);
       const response = await fetch(
         `${BACKEND_URL}/geocode?address=${encodeURIComponent(query)}`
@@ -215,7 +214,6 @@ export default function MapPage() {
     }
   };
 
-  // When a recent or saved destination is pressed, update destination and fetch routes
   const handleRecentPress = async (dest: string) => {
     setDestination(dest);
     const coords = await getDestinationCoordinates(dest);
@@ -229,7 +227,6 @@ export default function MapPage() {
     }
   };
 
-  // Parse the stops location string to display a marker of their fav.
   const handleSavedBusStopPress = (stop: any) => {
     if (stop.location) {
       const parts = stop.location.split(',');
@@ -275,9 +272,17 @@ export default function MapPage() {
     }
   };
 
-  const fetchNearbyBuses = async () => {
+  const fetchNearbyBuses = async (attempt = 1) => {
     if (userLatitude && userLongitude) {
+      const now = Date.now();
+      const cacheTTL = 60000; // Cache valid for 60 seconds
+      if (cachedNearbyBuses && nearbyBusesTimestamp && (now - nearbyBusesTimestamp < cacheTTL)) {
+        console.log("Using cached nearby buses");
+        setNearbyBuses(cachedNearbyBuses);
+        return;
+      }
       setBusesLoading(true);
+      console.log(`Fetching nearby buses from: ${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`);
       try {
         const response = await fetch(
           `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`
@@ -287,11 +292,20 @@ export default function MapPage() {
           console.log("Nearby buses:", data);
           const limitedBuses = data.slice(0, 20); // show max 20
           setNearbyBuses(limitedBuses);
+          cacheNearbyBuses(limitedBuses, now);
         } else {
-          console.error("Error fetching nearby buses:", response.statusText);
+          console.error("Error fetching nearby buses:", response.status, response.statusText);
+          if (attempt < 3) {
+            console.log(`Retrying fetchNearbyBuses, attempt ${attempt + 1}...`);
+            setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
+          }
         }
-      } catch (error) {
-        console.error("Error fetching nearby buses:", error);
+      } catch (error: any) {
+        console.error("Error fetching nearby buses:", error, JSON.stringify(error));
+        if (attempt < 3) {
+          console.log(`Retrying fetchNearbyBuses, attempt ${attempt + 1}...`);
+          setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
+        }
       } finally {
         setBusesLoading(false);
       }

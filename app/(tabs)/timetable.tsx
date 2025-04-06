@@ -7,77 +7,105 @@ import {
   ActivityIndicator, 
   RefreshControl, 
   Button,
-  TouchableOpacity
+  Switch
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/config';
+import { useApiCacheStore, TripUpdate } from "@/store/apiCacheStore";
 
 const API_URL = `${BACKEND_URL}/api/trip-updates`;
 
-// ✅ Define TypeScript Interface for the API response
-interface TripUpdate {
-  routeShortName: string;
-  totalDelay: number; // Delay is in seconds from API
-  stopName: string;
-  transportation: string;
-}
+// Define the available transport types for filtering
+const TRANSPORT_TYPES = [
+  "GTFS_Dublin_Bus",
+  "GTFS_Bus_Eireann",
+  "GTFS_Irish_Rail",
+  "GTFS_LUAS"
+];
 
-// ✅ Convert seconds to minutes for display
 const formatDelay = (seconds: number): string => {
   if (seconds < 60) return `< 1 min`;
   return `${Math.round(seconds / 60)} min`;
 };
 
+const CACHE_TTL = 60000; // Cache TTL in milliseconds (60 seconds)
+
 const Timetable: React.FC = () => {
   const router = useRouter();
   const [timetable, setTimetable] = useState<TripUpdate[]>([]);
+  const [filteredTimetable, setFilteredTimetable] = useState<TripUpdate[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for filtering transports (initially all are enabled)
+  const [selectedTransports, setSelectedTransports] = useState<Record<string, boolean>>(
+    TRANSPORT_TYPES.reduce((acc, curr) => ({ ...acc, [curr]: true }), {})
+  );
+  
+  // API cache store for trip updates
+  const { tripUpdates, tripUpdatesTimestamp, setTripUpdates } = useApiCacheStore();
 
-  // ✅ Fetch trip updates
   const fetchTimetable = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(API_URL, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      const now = Date.now();
+      if (tripUpdates && tripUpdatesTimestamp && now - tripUpdatesTimestamp < CACHE_TTL) {
+        console.log("Using cached trip updates");
+        setTimetable(tripUpdates);
+      } else {
+        const response = await fetch(API_URL, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        const data: TripUpdate[] = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid API response format - expected an array.");
+        }
+        setTimetable(data);
+        setTripUpdates(data, now); // Update the cache
+        setError(null);
       }
-      const data: TripUpdate[] = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error("Invalid API response format - expected an array.");
-      }
-      setTimetable(data);
-      setError(null);
     } catch (err) {
       setError(`❌ Fetch error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [tripUpdates, tripUpdatesTimestamp, setTripUpdates]);
 
-  // ✅ useEffect to fetch timetable on mount
+  // Fetch data on startup
   useEffect(() => {
     fetchTimetable();
   }, [fetchTimetable]);
 
-  // ✅ Pull-to-refresh functionality
+  useEffect(() => {
+    const filtered = timetable.filter(item => selectedTransports[item.transportation]);
+    // limit number shown
+    setFilteredTimetable(filtered.slice(0, 30));
+  }, [timetable, selectedTransports]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchTimetable();
   };
 
-  // ✅ Manual trigger for debugging
   const debugFetch = () => {
     fetchTimetable();
+  };
+
+  const toggleTransport = (transport: string) => {
+    setSelectedTransports(prev => ({
+      ...prev,
+      [transport]: !prev[transport]
+    }));
   };
 
   return (
@@ -99,9 +127,27 @@ const Timetable: React.FC = () => {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           <Text style={styles.header}>🚌 Real-time Trip Updates</Text>
+
+          <View style={styles.filterContainer}>
+            <Text style={styles.filterTitle}>Filter by Transport:</Text>
+            {TRANSPORT_TYPES.map(transport => (
+              <View key={transport} style={styles.checkboxContainer}>
+                <Switch
+                  value={selectedTransports[transport]}
+                  onValueChange={() => toggleTransport(transport)}
+                  trackColor={{ false: "#767577", true: "#007AFF" }}
+                  thumbColor="#f4f3f4"
+                />
+                <Text style={styles.checkboxLabel}>
+                  {transport.replace('GTFS_', '').replace('_', ' ')}
+                </Text>
+              </View>
+            ))}
+          </View>
+
           <Button title="Debug Fetch" onPress={debugFetch} color="#007AFF" />
-          {timetable.length > 0 ? (
-            timetable.map((item, index) => (
+          {filteredTimetable.length > 0 ? (
+            filteredTimetable.map((item, index) => (
               <View key={index} style={styles.card}>
                 <Text style={styles.routeText}>
                   📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
@@ -113,12 +159,14 @@ const Timetable: React.FC = () => {
                   ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
                 </Text>
                 <Text style={styles.transportationText}>
-                  🚌 Transport: <Text style={styles.bold}>{item.transportation}</Text>
+                  🚌 Transport: <Text style={styles.bold}>
+                    {item.transportation.replace('GTFS_', '').replace('_', ' ')}
+                  </Text>
                 </Text>
               </View>
             ))
           ) : (
-            <Text style={styles.noData}>No trip updates available.</Text>
+            <Text style={styles.noData}>No trip updates available for selected transports.</Text>
           )}
         </ScrollView>
       )}
@@ -130,17 +178,6 @@ const styles = StyleSheet.create({
   fullContainer: {
     flex: 1,
     backgroundColor: '#F8F9FA',
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 5,
-    backgroundColor: '#F8F9FA',
-  },
-  backArrow: {
-    
   },
   container: {
     flexGrow: 1,
@@ -154,6 +191,34 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#333',
   },
+  filterContainer: {
+    backgroundColor: 'white',
+    padding: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  filterTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 5,
+    justifyContent: 'space-between',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+    marginLeft: 10,
+  },
   card: {
     backgroundColor: 'white',
     padding: 15,
@@ -162,7 +227,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
-    elevation: 3, 
+    elevation: 3,
     borderLeftWidth: 6,
     borderColor: '#007AFF',
   },
