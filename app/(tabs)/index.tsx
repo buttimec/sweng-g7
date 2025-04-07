@@ -205,6 +205,32 @@ export default function Index() {
     ? tripUpdates.filter(update => savedBusRoutes.includes(update.routeShortName))
     : [];
 
+  // helper functions used with nearby departures
+
+  const getMinutesFromTimeString = (timeString: string) => {
+    const [hour, minute] = timeString.split(':').map(Number);
+    return hour * 60 + minute;
+  };
+
+  const formatDateTime = (date: Date) => {
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // order them by time, also only ones later than current time are shown (gtfs sometimes returns ones before)
+
+  const filteredSortedNearbyBuses = nearbyBuses
+  .filter(bus => getMinutesFromTimeString(bus.startTime) > currentMinutes)
+  .sort((a, b) => getMinutesFromTimeString(a.startTime) - getMinutesFromTimeString(b.startTime));
+
   return (
     <ScrollView
       style={styles.container}
@@ -219,8 +245,12 @@ export default function Index() {
 
       <View style={styles.card}>
         <Text style={styles.cardHeader}>Nearby Departures</Text>
-        {nearbyBuses.length > 0 ? (
-          nearbyBuses.map(bus => (
+        <Text style={styles.infoText}>
+          Current Time: {formatDateTime(new Date())} | Updated at:{' '}
+          {nearbyBusesTimestamp ? formatDateTime(new Date(nearbyBusesTimestamp)) : 'N/A'}
+        </Text>
+        {filteredSortedNearbyBuses.length > 0 ? (
+          filteredSortedNearbyBuses.map(bus => (
             <View key={bus.vehicleId} style={styles.departureItem}>
               <Text style={styles.departureText}>
                 {formatTime(bus.startTime)} - {bus.routeLongName} ({bus.routeShortName})
@@ -228,13 +258,12 @@ export default function Index() {
             </View>
           ))
         ) : (
-          <Text style={styles.noData}>No nearby departures available.</Text>
+          <Text style={styles.noData}>No nearby departures available. Refresh Page</Text>
         )}
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardHeader}>Latest Updates On Saved Buses</Text>
-        <Text onPress={fetchTripUpdates} style={styles.refreshButton}>Refresh Trip Updates</Text>
         {loadingTripUpdates ? (
           <ActivityIndicator size="small" color="#007AFF" />
         ) : error ? (
@@ -319,6 +348,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     color: '#444',
+    textAlign: 'center',
   },
   departureItem: {
     marginBottom: 8,
@@ -392,6 +422,12 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });
 
