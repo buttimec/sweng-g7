@@ -13,12 +13,11 @@ export default function ProfileScreen() {
     email: ''
   });
 
-  // Saved routes fetched from backend
   const [savedTrips, setSavedTrips] = useState([]);
 
   // Saved providers fetched from backend
   const [transportProviders, setTransportProviders] = useState([]);
-
+ 
   // Fetch preferred providers from backend
   useEffect(() => {
     const fetchTransportProviders = async () => {

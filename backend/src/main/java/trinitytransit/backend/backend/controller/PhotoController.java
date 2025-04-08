@@ -40,6 +40,8 @@ public class PhotoController {
                 map.put("filename", photo.getFilename());
                 map.put("description", photo.getDescription()); 
                 map.put("uploadTime", photo.getUploadTime());
+                map.put("assignedBus", photo.getAssignedBus());
+                map.put("assignedBusStop", photo.getAssignedBusStop());
                 return map;
             })
             .collect(Collectors.toList());
@@ -69,6 +71,23 @@ public class PhotoController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @PutMapping("/{id}/assignment")
+    public ResponseEntity<Void> updateAssignment(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Optional<Photo> optionalPhoto = photoRepository.findById(id);
+        if(optionalPhoto.isPresent()){
+           Photo photo = optionalPhoto.get();
+           if(body.containsKey("bus")){
+             photo.setAssignedBus(body.get("bus"));
+           }
+           if(body.containsKey("busStop")){
+             photo.setAssignedBusStop(body.get("busStop"));
+           }
+           photoRepository.save(photo);
+           return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     

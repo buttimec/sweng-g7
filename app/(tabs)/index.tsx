@@ -25,13 +25,14 @@ export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [personalDetails, setPersonalDetails] = useState({ name: '', email: '' });
 
+  // Request location and set user location
   useEffect(() => {
     const requestLocation = async () => {
-      console.log("Requesting location permissions...");
+      console.log("Method: requestLocation - Requesting location permissions...");
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setHasPermissions(false);
-        console.error("Location permission not granted");
+        console.error("Method: requestLocation - Location permission not granted");
         return;
       }
       setHasPermissions(true);
@@ -45,7 +46,7 @@ export default function Index() {
         longitude: location.coords.longitude,
         address: `${address[0]?.name || 'Unknown'}, ${address[0]?.region || 'Unknown'}`,
       };
-      console.log("User location set to:", loc);
+      console.log("Method: requestLocation - User location set to:", loc);
       setUserLocation(loc);
     };
     if (!userLatitude || !userLongitude) {
@@ -53,20 +54,22 @@ export default function Index() {
     }
   }, [setUserLocation, userLatitude, userLongitude]);
 
-  // Fetch personal details
+  // Fetch user details
   useEffect(() => {
     const fetchUserDetails = async () => {
+      console.log("Method: fetchUserDetails - Called");
       try {
         const response = await fetch(`${BACKEND_URL}/api/users/1`);
-        console.log('User details status:', response.status);
+        console.log('Method: fetchUserDetails - User details status:', response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log("Method: fetchUserDetails - Received data:", data);
           setPersonalDetails(data);
         } else {
-          console.warn(`User not found or error: ${response.status}`);
+          console.warn(`Method: fetchUserDetails - User not found or error: ${response.status}`);
         }
       } catch (error: any) {
-        console.error('Error fetching user:', error.message);
+        console.error('Method: fetchUserDetails - Error fetching user:', error.message);
       }
     };
     fetchUserDetails();
@@ -74,32 +77,33 @@ export default function Index() {
 
   // Fetch saved buses
   const fetchSavedBuses = async () => {
-    console.log("Fetching saved buses...");
+    console.log("Method: fetchSavedBuses - Called: Fetching saved buses...");
     try {
       const res = await fetch(`${BACKEND_URL}/api/buses`);
       if (res.ok) {
         const data = await res.json();
-        console.log("Saved buses received:", data);
+        console.log("Method: fetchSavedBuses - Saved buses received:", data);
         setSavedBuses(data);
       } else {
-        console.error("Failed to fetch saved buses:", res.statusText);
+        console.error("Method: fetchSavedBuses - Failed to fetch saved buses:", res.statusText);
       }
     } catch (err) {
-      console.error("Error fetching saved buses:", err);
+      console.error("Method: fetchSavedBuses - Error fetching saved buses:", err);
     }
   };
 
-  // Fetch trip updates from gtfs or preferrably cache
+  // Fetch trip updates (with caching)
   const fetchTripUpdates = useCallback(async () => {
+    console.log("Method: fetchTripUpdates - Called");
     const now = Date.now();
-    const cacheTTL = 60000; // Cache valid for 60 seconds
+    const cacheTTL = 120000; // Cache valid for 120 seconds
     if (tripUpdates && tripUpdatesTimestamp && now - tripUpdatesTimestamp < cacheTTL) {
-      console.log("Using cached trip updates");
+      console.log("Method: fetchTripUpdates - Using cached trip updates");
       setLoadingTripUpdates(false);
       return;
     }
     setLoadingTripUpdates(true);
-    console.log("Fetching trip updates from API...");
+    console.log("Method: fetchTripUpdates - Fetching trip updates from API...");
     try {
       const response = await fetch(`${BACKEND_URL}/api/trip-updates`, {
         headers: {
@@ -107,86 +111,91 @@ export default function Index() {
           'Content-Type': 'application/json',
         },
       });
-      console.log("Trip updates response received");
+      console.log("Method: fetchTripUpdates - Trip updates response received");
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
       const data: TripUpdate[] = await response.json();
-      console.log("Trip updates data:", data);
-      setTripUpdates(data, now); // update cache store
+      console.log("Method: fetchTripUpdates - Trip updates data:", data);
+      setTripUpdates(data, now);
       setError(null);
     } catch (err) {
+      console.error("Method: fetchTripUpdates - Error in fetchTripUpdates:", err);
       setError(`Fetch error: ${err instanceof Error ? err.message : "Unknown error"}`);
-      console.error("Error in fetchTripUpdates:", err);
     } finally {
       setLoadingTripUpdates(false);
       setRefreshing(false);
-      console.log("Finished fetching trip updates");
+      console.log("Method: fetchTripUpdates - Finished fetching trip updates");
     }
   }, [tripUpdates, tripUpdatesTimestamp, setTripUpdates]);
 
   // Fetch nearby buses using cache if possible
   const fetchNearbyBuses = async (attempt = 1) => {
-    if (userLatitude && userLongitude) {
-      const now = Date.now();
-      const cacheTTL = 60000; // Cache valid for 60 seconds
-      if (cachedNearbyBuses && nearbyBusesTimestamp && (now - nearbyBusesTimestamp < cacheTTL)) {
-        console.log("Using cached nearby buses");
-        setNearbyBuses(cachedNearbyBuses);
-        return;
-      }
-      setBusesLoading(true);
-      console.log(`Fetching nearby buses from: ${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`);
-      try {
-        const response = await fetch(
-          `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Nearby buses:", data);
-          const limitedBuses = data.slice(0, 20); // show max 20
-          setNearbyBuses(limitedBuses);
-          cacheNearbyBuses(limitedBuses, now);
-        } else {
-          console.error("Error fetching nearby buses:", response.status, response.statusText);
-          if (attempt < 3) {
-            console.log(`Retrying fetchNearbyBuses, attempt ${attempt + 1}...`);
-            setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
-          }
-        }
-      } catch (error: any) {
-        console.error("Error fetching nearby buses:", error, JSON.stringify(error));
+    console.log(`Method: fetchNearbyBuses - Called, attempt ${attempt}`);
+    if (!userLatitude || !userLongitude) {
+      console.log("Method: fetchNearbyBuses - User location is not set.");
+      return;
+    }
+    const now = Date.now();
+    const cacheTTL = 120000; // Cache valid for 120 seconds
+    if (cachedNearbyBuses && nearbyBusesTimestamp && now - nearbyBusesTimestamp < cacheTTL) {
+      console.log("Method: fetchNearbyBuses - Using cached nearby buses");
+      setNearbyBuses(cachedNearbyBuses);
+      return;
+    }
+    setBusesLoading(true);
+    const url = `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`;
+    console.log("Method: fetchNearbyBuses - Fetching from URL:", url);
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Method: fetchNearbyBuses - Nearby buses:", data);
+        const limitedBuses = data.slice(0, 20); // Limit to max 20 entries
+        setNearbyBuses(limitedBuses);
+        cacheNearbyBuses(limitedBuses, now);
+      } else {
+        console.error("Method: fetchNearbyBuses - Error fetching nearby buses:", response.status, response.statusText);
         if (attempt < 3) {
-          console.log(`Retrying fetchNearbyBuses, attempt ${attempt + 1}...`);
+          console.log(`Method: fetchNearbyBuses - Retrying, attempt ${attempt + 1}...`);
           setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
         }
-      } finally {
-        setBusesLoading(false);
       }
-    } else {
-      console.log("User location is not set.");
+    } catch (error: any) {
+      console.error("Method: fetchNearbyBuses - Error fetching nearby buses:", error);
+      if (attempt < 3) {
+        console.log(`Method: fetchNearbyBuses - Retrying, attempt ${attempt + 1}...`);
+        setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
+      }
+    } finally {
+      setBusesLoading(false);
     }
   };
 
+  // Fetch nearby buses first, then saved buses and trip updates (tring to limit API calls)
   useEffect(() => {
     if (userLatitude && userLongitude) {
-      console.log("User location available; fetching saved buses, trip updates, and nearby buses.");
-      fetchSavedBuses();
-      fetchTripUpdates();
-      fetchNearbyBuses();
+      console.log("Method: useEffect [userLatitude, userLongitude] - User location available; Fetching nearby departures first, then saved buses and trip updates...");
+      fetchNearbyBuses().then(() => {
+        console.log("Method: useEffect [userLatitude, userLongitude] - Nearby departures fetched; now fetching saved buses and trip updates...");
+        fetchSavedBuses();
+        fetchTripUpdates();
+      });
     } else {
-      console.log("Waiting for user location...");
+      console.log("Method: useEffect [userLatitude, userLongitude] - Waiting for user location...");
     }
   }, [userLatitude, userLongitude, fetchTripUpdates]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Clear cached timestamp to force a new fetch - this needs optimisation, GTFS is very limited in number of requests
+    // Clear cached timestamp to force a new fetch
     setTripUpdates(null, 0);
-    fetchSavedBuses();
-    fetchTripUpdates();
-    fetchNearbyBuses();
+    // Re-fetch nearby buses first, then other calls
+    fetchNearbyBuses().then(() => {
+      fetchSavedBuses();
+      fetchTripUpdates();
+    });
   };
 
   // Helper: Format time from "HH:mm:ss" to "h:mm AM/PM"
@@ -198,14 +207,6 @@ export default function Index() {
     hourNum = hourNum ? hourNum : 12;
     return `${hourNum}:${minute} ${ampm}`;
   };
-
-  // Filter trip updates to only include those matching a saved bus.
-  const savedBusRoutes = savedBuses.map(bus => bus.route);
-  const filteredUpdates = tripUpdates
-    ? tripUpdates.filter(update => savedBusRoutes.includes(update.routeShortName))
-    : [];
-
-  // helper functions used with nearby departures
 
   const getMinutesFromTimeString = (timeString: string) => {
     const [hour, minute] = timeString.split(':').map(Number);
@@ -226,10 +227,15 @@ export default function Index() {
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   // order them by time, also only ones later than current time are shown (gtfs sometimes returns ones before)
-
   const filteredSortedNearbyBuses = nearbyBuses
-  .filter(bus => getMinutesFromTimeString(bus.startTime) > currentMinutes)
-  .sort((a, b) => getMinutesFromTimeString(a.startTime) - getMinutesFromTimeString(b.startTime));
+    .filter(bus => getMinutesFromTimeString(bus.startTime) > currentMinutes)
+    .sort((a, b) => getMinutesFromTimeString(a.startTime) - getMinutesFromTimeString(b.startTime));
+
+  // Filter trip updates to only include updates relevant to saved buses
+  const savedBusRoutes = savedBuses.map(bus => bus.route);
+  const filteredUpdates = tripUpdates
+    ? tripUpdates.filter(update => savedBusRoutes.includes(update.routeShortName))
+    : [];
 
   return (
     <ScrollView
@@ -327,11 +333,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  permissionWarning: {
-    color: 'red',
-    fontSize: 14,
-    marginTop: 8,
-  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -416,12 +417,6 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 16,
     color: 'green',
-  },
-  refreshButton: {
-    fontSize: 16,
-    color: '#007AFF',
-    textAlign: 'center',
-    marginBottom: 10,
   },
   infoText: {
     fontSize: 14,

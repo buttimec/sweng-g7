@@ -12,7 +12,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Photo {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,7 +26,10 @@ public class Photo {
 
     @Column
     private LocalDateTime uploadTime = LocalDateTime.now();
-
+    @Column
+    private String assignedBus; 
+    @Column
+    private String assignedBusStop;
 }
 
 
