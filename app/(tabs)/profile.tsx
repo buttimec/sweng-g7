@@ -16,11 +16,27 @@ export default function ProfileScreen() {
   // Saved routes fetched from backend
   const [savedTrips, setSavedTrips] = useState([]);
 
-  // Dummy preferred transport providers
-  const [transportProviders] = useState([
-    { id: 'prov1', name: 'Provider A' },
-    { id: 'prov2', name: 'Provider B' },
-  ]);
+  // Saved providers fetched from backend
+  const [transportProviders, setTransportProviders] = useState([]);
+
+  // Fetch preferred providers from backend
+  useEffect(() => {
+    const fetchTransportProviders = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/favourites`);
+        if (response.ok) {
+          const data = await response.json();
+          setTransportProviders(data);
+        } else {
+          console.warn(`Error fetching transport providers: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching transport providers:', error.message);
+      }
+    };
+
+    fetchTransportProviders();
+  }, []);
 
   // Dummy profile image
   const [profileImage, setProfileImage] = useState('https://picsum.photos/200/?random&t=' + Date.now());
