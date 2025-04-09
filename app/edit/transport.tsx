@@ -110,11 +110,8 @@ export default function EditTransport() {
         const result = await response.json();
         console.log(`Added provider ${provider.id} to favorites. Response:`, result);
         
-        // Add to favProviders - adjust this based on your actual response format
         setFavProviders(prev => {
-          // This assumes your backend returns the newly created favorite or the updated list
-          // Adjust based on what your API actually returns
-          const updatedList = [...prev, result.newFavorite || [1, provider.id]];
+          const updatedList = [...prev, [1, provider.id]];
           console.log("Updated favorites after addition:", updatedList);
           return updatedList;
         });
