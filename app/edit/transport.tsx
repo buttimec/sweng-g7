@@ -23,13 +23,15 @@ export default function EditTransport() {
     loadProviders();
   }, []);
 
+  // looking into referencing provider table
   const handleAddProvider = () => {
     if (newProvider) {
       const provider = { name: newProvider };
       setProviders(prev => [...prev, provider]);
       setNewProvider('');
       try {
-        // Save providers
+        const provRes = await fetch(`${BACKEND_URL}/api/providers/by-name/` + provider.name);
+        const provData = await provRes.json();
         const urlString = `${BACKEND_URL}/api/favourites/add?userId=1&providerId=` + provider.id;
         const response = await fetch(urlString, {
           method: 'POST',
