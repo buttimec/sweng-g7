@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BACKEND_URL } from '@/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function ProfileScreen() {
 
   // Saved providers fetched from backend
   const [transportProviders, setTransportProviders] = useState([]);
- 
+
   // Fetch preferred providers from backend
   useEffect(() => {
     const fetchTransportProviders = async () => {
@@ -80,13 +81,51 @@ export default function ProfileScreen() {
     fetchSavedRoutes();
   }, []);
 
+  function delayFunction(callback: () => void, ms: number): void {
+    setTimeout(callback, ms);
+  }
+
+  const setAndSaveProfileImage = async () => {
+    saveProfileImage('https://picsum.photos/200/?random&t=' + Date.now());
+    loadProfileImage();
+  };
+  
+  // Save the profile picture (assuming it's a URI string)
+  const saveProfileImage = async (imageUri) => {
+    try {
+      await AsyncStorage.setItem('userProfileImage', imageUri);
+      console.log('saved image' + imageUri);
+    } catch (error) {
+      console.error('Error saving profile image', error);
+    }
+  };
+
+  // Load the profile picture when the component mounts
+  const loadProfileImage = async () => {
+    try {
+      const savedImageUri = await AsyncStorage.getItem('userProfileImage');
+      if (savedImageUri !== null) {
+        setProfileImage(savedImageUri);
+        console.log('loaded image' + savedImageUri);
+      }
+      
+    } catch (error) {
+      console.error('Error loading profile image', error);
+    }
+  };
+
+  // Use in a component with useEffect
+  useEffect(() => {
+    loadProfileImage();
+  }, []);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.profileHeader}>
         <Image source={{ uri: profileImage }} style={styles.profileImage} />
-        <TouchableOpacity 
-        onPress={() => setProfileImage('https://picsum.photos/200/?random&t=' + Date.now())}
-        style={styles.editPhotoButton}>
+        <TouchableOpacity
+          onPress={() => setAndSaveProfileImage()}
+          style={styles.editPhotoButton}>
           <Text style={styles.editPhotoButtonText}>Change Photo</Text>
         </TouchableOpacity>
       </View>
