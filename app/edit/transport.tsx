@@ -2,16 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/config';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditTransport() {
   const router = useRouter();
   const [providers, setProviders] = useState([]);
   const [favProviders, setFavProviders] = useState([]);
-  const [newProvider, setNewProvider] = useState('');
 
   // On mount, fetch the favourite providers from the backend
   useEffect(() => {
-    const loadAllProviders = async () => {
+    const loadProviders = async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/providers`);
         const data = await res.json();
@@ -30,8 +30,27 @@ export default function EditTransport() {
       }
     };
 
-    loadAllProviders();
+    loadProviders();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadFavProviders = async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
+          const data = await res.json();
+          setFavProviders(data);
+        } catch (error) {
+          console.error('Error fetching favourite providers:', error);
+        }
+      };
+  
+      loadFavProviders();
+      
+      return () => {
+      };
+    }, [])
+  );
 
   // Function to check if a provider is favorited
   const isProviderFavorited = (providerId) => {
