@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'rea
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BACKEND_URL } from '@/config';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -23,24 +24,26 @@ export default function ProfileScreen() {
   const [showDebug, setShowDebug] = useState(false);
 
   // Fetch preferred providers from backend
-  useEffect(() => {
-    const fetchTransportProviders = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/favourites/1`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Transport providers data:", data);
-          setTransportProviders(data);
-        } else {
-          console.warn(`Error fetching transport providers: ${response.status}`);
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchTransportProviders = async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/favourites/1`);
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Transport providers data:", data);
+            setTransportProviders(data);
+          } else {
+            console.warn(`Error fetching transport providers: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Error fetching transport providers:', error.message);
         }
-      } catch (error) {
-        console.error('Error fetching transport providers:', error.message);
-      }
-    };
+      };
 
-    fetchTransportProviders();
-  }, []);
+      fetchTransportProviders();
+    }, [])
+  );
 
   // Dummy profile image
   const [profileImage, setProfileImage] = useState('https://picsum.photos/200/?random&t=' + Date.now());
