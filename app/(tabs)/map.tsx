@@ -25,6 +25,9 @@ export default function MapPage() {
   const { userLatitude, userLongitude, setDestinationLocation } = useLocationStore();
   const { nearbyBuses: cachedNearbyBuses, nearbyBusesTimestamp, setNearbyBuses: cacheNearbyBuses } = useApiCacheStore();
 
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<any[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState<boolean>(false);
+
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [destination, setDestination] = useState("");
   const [routes, setRoutes] = useState<any[]>([]);
@@ -57,6 +60,56 @@ export default function MapPage() {
     } catch (error) {
       console.error("Error saving state", error);
     }
+  };
+
+  // Add this function to fetch suggestions
+  const fetchAutocompleteSuggestions = async (input: string) => {
+    console.log("fetchAutocompleteSuggestions called with:", input);
+
+    if (!input || input.length < 2) {
+      console.log("Input too short, clearing suggestions");
+      setAutocompleteSuggestions([]);
+      setShowAutocomplete(false);
+      return;
+    }
+
+    try {
+      const url = `${BACKEND_URL}/autocomplete?input=${encodeURIComponent(input)}`;
+      console.log("Fetching from URL:", url);
+
+      const response = await fetch(url);
+      console.log("Response status:", response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Autocomplete data received:", data);
+
+        // Parse the Google API response
+        if (data.predictions) {
+          const suggestions = data.predictions.map((prediction: any) => ({
+            placeId: prediction.place_id,
+            description: prediction.description,
+          }));
+          console.log("Processed suggestions:", suggestions);
+          setAutocompleteSuggestions(suggestions);
+          setShowAutocomplete(true);
+        } else {
+          console.log("No predictions found in response");
+        }
+      } else {
+        console.error("Error fetching autocomplete suggestions:", response.statusText);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+      }
+    } catch (error) {
+      console.error("Exception in fetchAutocompleteSuggestions:", error);
+    }
+  };
+
+  // Add this function to handle selection
+  const handleSelectSuggestion = (suggestion: any) => {
+    setDestination(suggestion.description);
+    setShowAutocomplete(false);
   };
 
   const loadPersistedState = async () => {
@@ -168,49 +221,101 @@ export default function MapPage() {
   };
 
   const fetchRoutesUsingCoords = async (coords: { lat: number; lng: number }) => {
-    if (userLatitude && userLongitude) {
-      const response = await fetch(
-        `${BACKEND_URL}/directions?originLat=${userLatitude}&originLng=${userLongitude}&destLat=${coords.lat}&destLng=${coords.lng}`
-      );
+    try {
+      if (!userLatitude || !userLongitude) {
+        console.error("User location is missing");
+        alert("Your current location is required to fetch routes");
+        return;
+      }
+      
+      console.log("Fetching routes from:", userLatitude, userLongitude, "to:", coords.lat, coords.lng);
+      
+      const url = `${BACKEND_URL}/directions?originLat=${userLatitude}&originLng=${userLongitude}&destLat=${coords.lat}&destLng=${coords.lng}`;
+      console.log("API URL:", url);
+      
+      const response = await fetch(url);
+      console.log("Response status:", response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log("Routes fetched:", JSON.stringify(data, null, 2));
+        console.log("Routes data received, length:", data.length);
+        
         if (data.length > 0) {
           let allRoutes = [];
           data.forEach((route, routeIndex) => {
-            const steps = route.legs.flatMap((leg: any) => leg.steps);
+            console.log(`Processing route ${routeIndex+1}:`, route);
+            
+            // Check if route.legs exists and is an array
+            if (!route.legs || !Array.isArray(route.legs)) {
+              console.error(`Route ${routeIndex+1} has invalid legs:`, route.legs);
+              return;
+            }
+            
+            const steps = route.legs.flatMap((leg: any) => {
+              // Check if leg.steps exists and is an array
+              if (!leg.steps || !Array.isArray(leg.steps)) {
+                console.error("Invalid leg structure:", leg);
+                return [];
+              }
+              return leg.steps;
+            });
+            
             const routeInstructions = steps.map((step: any, index: number) => ({
               id: `${routeIndex}-${index}`,
               instruction: step.htmlInstructions || `Step ${index + 1} not available`,
             }));
+            
             allRoutes.push({ routeIndex, instructions: routeInstructions });
           });
+          
           setRoutes(allRoutes);
           setSelectedRouteIndex(0);
         } else {
-          console.error("No routes found");
+          console.error("No routes found in response");
+          alert("No routes found for this destination");
         }
       } else {
-        console.error("Error fetching routes:", response.statusText);
+        const errorText = await response.text();
+        console.error("Error fetching routes - Status:", response.status, "Response:", errorText);
+        alert(`Error finding routes: ${response.status} ${response.statusText}`);
       }
-    } else {
-      console.log("User location missing");
+    } catch (error) {
+      console.error("Exception in fetchRoutesUsingCoords:", error);
+      alert("An error occurred while fetching routes");
     }
   };
 
   const handleSearch = async () => {
-    if (!destination) return;
-    const coords = await getDestinationCoordinates(destination);
-    if (coords) {
-      setDestinationLocation({
-        latitude: coords.lat,
-        longitude: coords.lng,
-        address: destination,
-      });
-      if (!recentDestinations.includes(destination)) {
-        setRecentDestinations([...recentDestinations, destination]);
+    console.log("handleSearch called with destination:", destination);
+    
+    if (!destination) {
+      console.log("No destination entered");
+      return;
+    }
+    
+    try {
+      const coords = await getDestinationCoordinates(destination);
+      console.log("Coordinates returned:", coords);
+      
+      if (coords) {
+        setDestinationLocation({
+          latitude: coords.lat,
+          longitude: coords.lng,
+          address: destination,
+        });
+        
+        if (!recentDestinations.includes(destination)) {
+          setRecentDestinations([...recentDestinations, destination]);
+        }
+        
+        await fetchRoutesUsingCoords(coords);
+      } else {
+        console.error("No coordinates found for destination");
+        alert("Could not find location. Please try a different search term.");
       }
-      await fetchRoutesUsingCoords(coords);
+    } catch (error) {
+      console.error("Error in handleSearch:", error);
+      alert("An error occurred while searching for the destination");
     }
   };
 
@@ -253,7 +358,7 @@ export default function MapPage() {
       setBusStopsLoading(true);
       try {
         const response = await fetch(
-          `${BACKEND_URL}/getNearStops?lat=${userLatitude}&lng=${userLongitude}&radius=1000`
+          `${BACKEND_URL}/getNearStops?lat=${userLatitude}&lng=${userLongitude}&radius=3000`
         );
         if (response.ok) {
           const data = await response.json();
@@ -451,12 +556,38 @@ export default function MapPage() {
       </View>
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Enter destination"
-            value={destination}
-            onChangeText={setDestination}
-          />
+          <View style={styles.autocompleteContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Enter destination"
+              value={destination}
+              onChangeText={(text) => {
+                setDestination(text);
+                fetchAutocompleteSuggestions(text);
+              }}
+            />
+
+            {showAutocomplete && autocompleteSuggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                <ScrollView
+                  keyboardShouldPersistTaps="always"
+                  nestedScrollEnabled={true}
+                  style={styles.suggestionsList}
+                >
+                  {autocompleteSuggestions.map((suggestion, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSelectSuggestion(suggestion)}
+                    >
+                      <Text style={styles.suggestionText}>{suggestion.description}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+
           <CustomButton title="Fetch Routes" onPress={handleSearch} />
           <CustomButton title="Find Nearby Bus Stops" onPress={fetchNearbyBusStops} />
           <CustomButton
@@ -925,6 +1056,36 @@ const styles = StyleSheet.create({
   savedRouteText: {
     fontSize: 16,
     color: '#007AFF',
+  },
+  autocompleteContainer: {
+    position: 'relative',
+    zIndex: 3, // High z-index to ensure the dropdown appears above other elements
+    marginBottom: 15,
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: 'red', // Make it clearly visible for debugging
+    borderRadius: 8,
+    maxHeight: 200,
+    zIndex: 9999, // Very high z-index
+    elevation: 99, // High elevation for Android
+  },
+  suggestionsList: {
+    width: '100%',
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: '#333',
   },
 });
 

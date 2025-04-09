@@ -58,18 +58,32 @@ public class GoogleMapsController {
     //http://localhost:8080/directions?originLat=53.344480&originLng=-6.259396&destLat=53.337863&destLng=-6.283883
 
     @GetMapping("/directions")
-        public ResponseEntity<?> getDirections(
-        @RequestParam double originLat, 
-        @RequestParam double originLng,
-        @RequestParam double destLat, 
-        @RequestParam double destLng) {
+    public ResponseEntity<?> getDirections(
+            @RequestParam double originLat,
+            @RequestParam double originLng,
+            @RequestParam double destLat,
+            @RequestParam double destLng) {
         try {
             LatLng origin = new LatLng(originLat, originLng);
             LatLng destination = new LatLng(destLat, destLng);
             DirectionsRoute[] results = googleMapsService.getDirections(origin, destination);
             return ResponseEntity.ok(results);
         } catch (Exception e) {
-        return ResponseEntity.status(500).body("Error fetching directions: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error fetching directions: " + e.getMessage());
         }
-}
+    }
+
+    @GetMapping("/autocomplete")
+    public ResponseEntity<?> getAutocompleteSuggestions(@RequestParam String input) {
+        try {
+            if (input == null || input.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Input parameter is required");
+            }
+
+            String suggestions = googleMapsService.getPlaceAutocomplete(input);
+            return ResponseEntity.ok(suggestions);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error fetching autocomplete suggestions: " + e.getMessage());
+        }
+    }
 }

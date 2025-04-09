@@ -8,6 +8,8 @@ import com.google.maps.GeocodingApi;
 import com.google.maps.model.*;
 import com.google.maps.PlacesApi;
 import com.google.maps.DirectionsApi;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +23,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +41,9 @@ public class GoogleMapsService {
     private Map<String, String> routeLongNames = new HashMap<>();
     private Map<String, String> tripNames = new HashMap<>();
     private Map<String, String> transportationMapping = new HashMap<>();
+
+    @Value("${google.maps.api.key}")
+    private String googleApiKey;
 
     public GoogleMapsService(GeoApiContext context) {
         this.context = context;
@@ -196,5 +202,23 @@ public class GoogleMapsService {
         double distance = R * c; // Distance in km
         return distance;
     }
+
+    public String getPlaceAutocomplete(String input) throws Exception {
+        RestTemplate restTemplate = new RestTemplate();
+        
+        // Create the URL for the Places Autocomplete API
+        String url = String.format(
+            "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=%s&types=geocode&key=%s",
+            input,
+            googleApiKey // Use the injected key instead of trying to get it from context
+        );
+        
+        // Make the request
+        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+        
+        // Return the JSON response
+        return response.getBody();
+    }
+    
 }
 
