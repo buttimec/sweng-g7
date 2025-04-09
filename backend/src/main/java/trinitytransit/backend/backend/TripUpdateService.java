@@ -20,7 +20,7 @@ import org.springframework.core.io.ClassPathResource;
 public class TripUpdateService {
 
     private static final String API_URL = "https://api.nationaltransport.ie/gtfsr/v2/TripUpdates?format=json";
-    private static final String API_KEY = "9b70ea23a4a94ba68a7ebba3fadcd818";
+    private static final String API_KEY = "8916926d658742048b34fe742b5129eb";
 
     private static final String[] TRANSPORTATION_TYPES = { "GTFS_Dublin_Bus", "GTFS_Bus_Eireann", "GTFS_Irish_Rail", "GTFS_LUAS" };
     private Map<String, String> routeShortNames = new HashMap<>();

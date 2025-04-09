@@ -131,8 +131,8 @@ export default function Index() {
   }, [tripUpdates, tripUpdatesTimestamp, setTripUpdates]);
 
   // Fetch nearby buses using cache if possible
-  const fetchNearbyBuses = async (attempt = 1) => {
-    console.log(`Method: fetchNearbyBuses - Called, attempt ${attempt}`);
+  const fetchNearbyBuses = async () => {
+    console.log("Method: fetchNearbyBuses - Called");
     if (!userLatitude || !userLongitude) {
       console.log("Method: fetchNearbyBuses - User location is not set.");
       return;
@@ -147,6 +147,7 @@ export default function Index() {
     setBusesLoading(true);
     const url = `${BACKEND_URL}/getNearbyBuses?lat=${userLatitude}&lng=${userLongitude}&radius=50`;
     console.log("Method: fetchNearbyBuses - Fetching from URL:", url);
+    
     try {
       const response = await fetch(url);
       if (response.ok) {
@@ -156,22 +157,19 @@ export default function Index() {
         setNearbyBuses(limitedBuses);
         cacheNearbyBuses(limitedBuses, now);
       } else {
-        console.error("Method: fetchNearbyBuses - Error fetching nearby buses:", response.status, response.statusText);
-        if (attempt < 3) {
-          console.log(`Method: fetchNearbyBuses - Retrying, attempt ${attempt + 1}...`);
-          setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
-        }
+        console.error(
+          "Method: fetchNearbyBuses - Error fetching nearby buses:",
+          response.status,
+          response.statusText
+        );
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Method: fetchNearbyBuses - Error fetching nearby buses:", error);
-      if (attempt < 3) {
-        console.log(`Method: fetchNearbyBuses - Retrying, attempt ${attempt + 1}...`);
-        setTimeout(() => fetchNearbyBuses(attempt + 1), 2000);
-      }
     } finally {
       setBusesLoading(false);
     }
   };
+
 
   // Fetch nearby buses first, then saved buses and trip updates (tring to limit API calls)
   useEffect(() => {
