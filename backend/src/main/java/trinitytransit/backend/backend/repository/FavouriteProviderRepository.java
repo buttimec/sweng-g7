@@ -7,4 +7,5 @@ import java.util.List;
 public interface FavouriteProviderRepository extends JpaRepository<FavouriteProvider, Long> {
     List<FavouriteProvider> findByUserId(Long userId);
     boolean existsByUserIdAndProviderId(Long userId, Long providerId);
+    void deleteByUserIdAndProviderId(Long userId, Long providerId);
 }

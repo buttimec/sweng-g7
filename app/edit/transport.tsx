@@ -9,24 +9,22 @@ export default function EditTransport() {
   const [providers, setProviders] = useState([]);
   const [favProviders, setFavProviders] = useState([]);
 
-  // On mount, fetch the favourite providers from the backend
-  useEffect(() => {
-    const loadProviders = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/providers`);
-        const data = await res.json();
-        setProviders(data);
-        console.log("All providers:", data);
-      } catch (error) {
-        console.error('Error fetching transport providers:', error);
-      }
-    };
-
-    loadProviders();
-  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
+
+      const loadProviders = async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/providers`);
+          const data = await res.json();
+          setProviders(data);
+          console.log("All providers:", data);
+        } catch (error) {
+          console.error('Error fetching transport providers:', error);
+        }
+      };
+      loadProviders();
+
       const loadFavProviders = async () => {
         try {
           const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
@@ -36,7 +34,6 @@ export default function EditTransport() {
           console.error('Error fetching favourite providers:', error);
         }
       };
-  
       loadFavProviders();
       
       return () => {
@@ -51,7 +48,7 @@ export default function EditTransport() {
     // Check different possible formats of favProviders data
     const isFavorited = favProviders.some(fav => {
       if (Array.isArray(fav)) {
-        return fav[1] === providerId;
+        return fav[0] === providerId;
       } else if (fav.providerId) {
         return fav.providerId === providerId;
       } else if (fav.id) {
@@ -71,7 +68,7 @@ export default function EditTransport() {
     
     if (isCurrentlyFavorited) {
       try {
-        await fetch(`${BACKEND_URL}/api/favourites/delete?userId=1&providerId=${provider.id}`, {
+        await fetch(`${BACKEND_URL}/api/favourites/delete?providerId=${provider.id}&userId=1`, {
           method: 'DELETE',
         });
         console.log(`Removed provider ${provider.id} from favorites`);
@@ -80,7 +77,7 @@ export default function EditTransport() {
         setFavProviders(prev => {
           const updated = prev.filter(p => {
             if (Array.isArray(p)) {
-              return p[1] !== provider.id;
+              return p[0] !== provider.id;
             } else if (p.providerId) {
               return p.providerId !== provider.id;
             } else if (p.id) {
@@ -96,14 +93,14 @@ export default function EditTransport() {
       }
     } else {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/favourites/add?userId=1&providerId=${provider.id}`, {
+        const response = await fetch(`${BACKEND_URL}/api/favourites/add?providerId=${provider.id}&userId=1`, {
           method: 'POST',
         });
         const result = await response.json();
         console.log(`Added provider ${provider.id} to favorites. Response:`, result);
         
         setFavProviders(prev => {
-          const updatedList = [...prev, [1, provider.id]];
+          const updatedList = [...prev, [provider.id, 1]];
           console.log("Updated favorites after addition:", updatedList);
           return updatedList;
         });

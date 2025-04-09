@@ -34,19 +34,17 @@ export default function ProfileScreen() {
         const response = await fetch(`${BACKEND_URL}/api/favourites/1`);
         if (response.ok) {
           const data = await response.json();
-          console.log("Transport providers data:", data);
           setTransportProviders(data);
         } else {
-          console.warn(`Error fetching transport providers: ${response.status}`);
+          console.warn(`Error fetching favourite transport providers: ${response.status}`);
         }
       } catch (error) {
-        console.error('Error fetching transport providers:', error.message);
+        console.error('Error fetching favourite transport providers:', error.message);
       }
       try {
-        const res = await fetch(`${BACKEND_URL}/api/providers`);
-        const data = await res.json();
+        const response = await fetch(`${BACKEND_URL}/api/providers`);
+        const data = await response.json();
         setAllTransportProviders(data);
-        console.log("All providers:", data);
       } catch (error) {
         console.error('Error fetching transport providers:', error);
       }

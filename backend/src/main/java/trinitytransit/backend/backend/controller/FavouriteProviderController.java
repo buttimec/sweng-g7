@@ -32,8 +32,8 @@ public class FavouriteProviderController {
 
     @PostMapping("/add")
     public ResponseEntity<FavouriteProvider> addFavourite(
-            @RequestParam Long userId,
-            @RequestParam Long providerId
+            @RequestParam Long providerId,
+            @RequestParam Long userId
     ) {
         if (favouriteRepository.existsByUserIdAndProviderId(userId, providerId)) {
             return ResponseEntity.status(409).build(); // Conflict - already exists
@@ -59,11 +59,11 @@ public class FavouriteProviderController {
 
     @DeleteMapping("/delete")
     public ResponseEntity<Void> deleteFavourite(
-        @RequestParam Long userId,
-        @RequestParam Long providerId
+        @RequestParam Long providerId,
+        @RequestParam Long userId
         ) {
         if (favouriteRepository.existsByUserIdAndProviderId(userId, providerId)) {
-            favouriteRepository.deleteById(userId);
+            favouriteRepository.deleteByUserIdAndProviderId(userId, providerId)
             return ResponseEntity.noContent().build(); // 204
         } else {
             return ResponseEntity.notFound().build(); // 404
@@ -72,8 +72,8 @@ public class FavouriteProviderController {
 
     @GetMapping("/exists")
     public ResponseEntity<Boolean> checkFavouriteExists(
-            @RequestParam Long userId,
-            @RequestParam Long providerId
+            @RequestParam Long providerId,
+            @RequestParam Long userId
     ) {
         boolean exists = favouriteRepository.existsByUserIdAndProviderId(userId, providerId);
         return ResponseEntity.ok(exists);
