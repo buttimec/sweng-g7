@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  ScrollView, 
   ActivityIndicator, 
   RefreshControl, 
   Button,
-  Switch
+  Switch,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,7 +19,6 @@ import { useApiCacheStore, TripUpdate } from "@/store/apiCacheStore";
 
 const API_URL = `${BACKEND_URL}/api/trip-updates`;
 
-// Define the available transport types for filtering
 const TRANSPORT_TYPES = [
   "GTFS_Dublin_Bus",
   "GTFS_Bus_Eireann",
@@ -29,23 +31,47 @@ const formatDelay = (seconds: number): string => {
   return `${Math.round(seconds / 60)} min`;
 };
 
-const CACHE_TTL = 60000; // Cache TTL in milliseconds (60 seconds)
+const CACHE_TTL = 60000;
 
 const Timetable: React.FC = () => {
   const router = useRouter();
   const [timetable, setTimetable] = useState<TripUpdate[]>([]);
-  const [filteredTimetable, setFilteredTimetable] = useState<TripUpdate[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
   
-  // State for filtering transports (initially all are enabled)
   const [selectedTransports, setSelectedTransports] = useState<Record<string, boolean>>(
     TRANSPORT_TYPES.reduce((acc, curr) => ({ ...acc, [curr]: true }), {})
   );
   
-  // API cache store for trip updates
   const { tripUpdates, tripUpdatesTimestamp, setTripUpdates } = useApiCacheStore();
+
+  const stopNameSuggestions = useMemo(() => {
+    const stops = new Set<string>();
+    timetable.forEach(item => stops.add(item.stopName));
+    return Array.from(stops).sort();
+  }, [timetable]);
+
+  const filteredSuggestions = useMemo(() => {
+    if (!searchQuery) return [];
+    return stopNameSuggestions.filter(stop => 
+      stop.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 5);
+  }, [searchQuery, stopNameSuggestions]);
+
+  const filteredTimetable = useMemo(() => {
+    let filtered = timetable.filter(item => selectedTransports[item.transportation]);
+    
+    if (searchQuery) {
+      filtered = filtered.filter(item => 
+        item.stopName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered.slice(0, 30);
+  }, [timetable, selectedTransports, searchQuery]);
 
   const fetchTimetable = useCallback(async () => {
     setLoading(true);
@@ -70,7 +96,7 @@ const Timetable: React.FC = () => {
           throw new Error("Invalid API response format - expected an array.");
         }
         setTimetable(data);
-        setTripUpdates(data, now); // Update the cache
+        setTripUpdates(data, now);
         setError(null);
       }
     } catch (err) {
@@ -81,23 +107,12 @@ const Timetable: React.FC = () => {
     }
   }, [tripUpdates, tripUpdatesTimestamp, setTripUpdates]);
 
-  // Fetch data on startup
   useEffect(() => {
     fetchTimetable();
   }, [fetchTimetable]);
 
-  useEffect(() => {
-    const filtered = timetable.filter(item => selectedTransports[item.transportation]);
-    // limit number shown
-    setFilteredTimetable(filtered.slice(0, 30));
-  }, [timetable, selectedTransports]);
-
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTimetable();
-  };
-
-  const debugFetch = () => {
     fetchTimetable();
   };
 
@@ -108,68 +123,146 @@ const Timetable: React.FC = () => {
     }));
   };
 
-  return (
-    <View style={styles.fullContainer}>   
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text>Loading trip updates...</Text>
-          <Button title="Retry" onPress={debugFetch} />
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.error}>❌ Error: {error}</Text>
-          <Button title="Retry Fetch" onPress={fetchTimetable} />
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.container}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        >
-          <Text style={styles.header}>🚌 Real-time Trip Updates</Text>
+  const handleSelectSuggestion = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    setShowSuggestions(false);
+    Keyboard.dismiss();
+  };
 
-          <View style={styles.filterContainer}>
-            <Text style={styles.filterTitle}>Filter by Transport:</Text>
-            {TRANSPORT_TYPES.map(transport => (
-              <View key={transport} style={styles.checkboxContainer}>
-                <Switch
-                  value={selectedTransports[transport]}
-                  onValueChange={() => toggleTransport(transport)}
-                  trackColor={{ false: "#767577", true: "#007AFF" }}
-                  thumbColor="#f4f3f4"
-                />
-                <Text style={styles.checkboxLabel}>
-                  {transport.replace('GTFS_', '').replace('_', ' ')}
-                </Text>
-              </View>
-            ))}
+  const renderItem = ({ item }: { item: TripUpdate }) => (
+    <View style={styles.card}>
+      <Text style={styles.routeText}>
+        📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
+      </Text>
+      <Text style={styles.stopText}>
+        🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
+      </Text>
+      <Text style={styles.delayText}>
+        ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
+      </Text>
+      <Text style={styles.transportationText}>
+        🚌 Transport: <Text style={styles.bold}>
+          {item.transportation.replace('GTFS_', '').replace('_', ' ')}
+        </Text>
+      </Text>
+    </View>
+  );
+
+  const renderTransportFilters = () => {
+    const transportPairs = [];
+    for (let i = 0; i < TRANSPORT_TYPES.length; i += 2) {
+      transportPairs.push(TRANSPORT_TYPES.slice(i, i + 2));
+    }
+
+    return transportPairs.map((pair, index) => (
+      <View key={index} style={styles.filterRow}>
+        {pair.map(transport => (
+          <View key={transport} style={styles.filterItem}>
+            <Switch
+              value={selectedTransports[transport]}
+              onValueChange={() => toggleTransport(transport)}
+              trackColor={{ false: "#767577", true: "#007AFF" }}
+              thumbColor="#f4f3f4"
+            />
+            <Text style={styles.filterLabel}>
+              {transport.replace('GTFS_', '').replace('_', ' ')}
+            </Text>
           </View>
+        ))}
+      </View>
+    ));
+  };
 
-          <Button title="Debug Fetch" onPress={debugFetch} color="#007AFF" />
-          {filteredTimetable.length > 0 ? (
-            filteredTimetable.map((item, index) => (
-              <View key={index} style={styles.card}>
-                <Text style={styles.routeText}>
-                  📍 Route: <Text style={styles.bold}>{item.routeShortName}</Text>
-                </Text>
-                <Text style={styles.stopText}>
-                  🚏 Stop: <Text style={styles.bold}>{item.stopName}</Text>
-                </Text>
-                <Text style={styles.delayText}>
-                  ⏳ Delay: <Text style={styles.bold}>{formatDelay(item.totalDelay)}</Text>
-                </Text>
-                <Text style={styles.transportationText}>
-                  🚌 Transport: <Text style={styles.bold}>
-                    {item.transportation.replace('GTFS_', '').replace('_', ' ')}
-                  </Text>
-                </Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.noData}>No trip updates available for selected transports.</Text>
-          )}
-        </ScrollView>
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Loading trip updates...</Text>
+        <Button title="Retry" onPress={fetchTimetable} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.error}>❌ Error: {error}</Text>
+        <Button title="Retry Fetch" onPress={fetchTimetable} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.fullContainer}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>🚌 Real-time Trip Updates</Text>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by stop name..."
+          value={searchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+            setShowSuggestions(text.length > 0);
+          }}
+          onFocus={() => setShowSuggestions(searchQuery.length > 0)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        />
+        {searchQuery && (
+          <TouchableOpacity 
+            style={styles.clearButton}
+            onPress={() => {
+              setSearchQuery('');
+              setShowSuggestions(false);
+            }}
+          >
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {showSuggestions && filteredSuggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          <FlatList
+            data={filteredSuggestions}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity 
+                style={styles.suggestionItem}
+                onPress={() => handleSelectSuggestion(item)}
+              >
+                <Text style={styles.suggestionText}>{item}</Text>
+              </TouchableOpacity>
+            )}
+            keyboardShouldPersistTaps="always"
+          />
+        </View>
       )}
+
+      <View style={styles.filterContainer}>
+        {renderTransportFilters()}
+      </View>
+
+      <Button title="Debug Fetch" onPress={fetchTimetable} color="#007AFF" />
+
+      <FlatList
+        data={filteredTimetable}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => index.toString()}
+        ListEmptyComponent={
+          <Text style={styles.noData}>
+            {searchQuery 
+              ? "No trip updates match your search criteria."
+              : "No trip updates available for selected transports."}
+          </Text>
+        }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={styles.listContent}
+      />
     </View>
   );
 };
@@ -179,50 +272,89 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
   },
-  container: {
-    flexGrow: 1,
+  headerContainer: {
     padding: 16,
-    backgroundColor: '#F8F9FA',
+    paddingBottom: 0,
   },
   header: {
     fontSize: 26,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    color: '#333',
+  },
+  searchContainer: {
+    position: 'relative',
+    margin: 16,
+    marginBottom: 0,
+  },
+  searchInput: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
+    fontSize: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    paddingRight: 40,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 10,
+    top: 15,
+  },
+  suggestionsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 5,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    zIndex: 1,
+  },
+  suggestionItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  suggestionText: {
+    fontSize: 16,
     color: '#333',
   },
   filterContainer: {
     backgroundColor: 'white',
     padding: 15,
-    marginBottom: 15,
+    margin: 16,
+    marginBottom: 16,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
   },
-  filterTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  checkboxContainer: {
+  filterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 5,
-    justifyContent: 'space-between',
+    width: '48%',
   },
-  checkboxLabel: {
-    fontSize: 16,
+  filterLabel: {
+    fontSize: 14,
     color: '#333',
-    flex: 1,
-    marginLeft: 10,
+    marginLeft: 8,
   },
   card: {
     backgroundColor: 'white',
     padding: 15,
     marginVertical: 8,
+    marginHorizontal: 16,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOpacity: 0.1,
@@ -270,6 +402,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#555',
     marginTop: 20,
+    marginHorizontal: 16,
+  },
+  listContent: {
+    paddingBottom: 16,
   },
 });
 
