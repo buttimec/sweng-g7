@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'rea
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BACKEND_URL } from '@/config';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -17,25 +18,31 @@ export default function ProfileScreen() {
 
   // Saved providers fetched from backend
   const [transportProviders, setTransportProviders] = useState([]);
- 
-  // Fetch preferred providers from backend
-  useEffect(() => {
-    const fetchTransportProviders = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/favourites`);
-        if (response.ok) {
-          const data = await response.json();
-          setTransportProviders(data);
-        } else {
-          console.warn(`Error fetching transport providers: ${response.status}`);
-        }
-      } catch (error) {
-        console.error('Error fetching transport providers:', error.message);
-      }
-    };
+   
+  // Debug state
+  const [showDebug, setShowDebug] = useState(false);
 
-    fetchTransportProviders();
-  }, []);
+  // Fetch preferred providers from backend
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchTransportProviders = async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/favourites/1`);
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Transport providers data:", data);
+            setTransportProviders(data);
+          } else {
+            console.warn(`Error fetching transport providers: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Error fetching transport providers:', error.message);
+        }
+      };
+
+      fetchTransportProviders();
+    }, [])
+  );
 
   // Dummy profile image
   const [profileImage, setProfileImage] = useState('https://picsum.photos/200/?random&t=' + Date.now());
@@ -80,6 +87,14 @@ export default function ProfileScreen() {
     fetchSavedRoutes();
   }, []);
 
+  const renderProviderName = (provider) => {
+    if (provider.provider) {
+      const { name, vehicleType } = provider.provider;
+      return `${name} (${vehicleType})`;
+    }
+    return 'Unknown Provider';
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.profileHeader}>
@@ -123,12 +138,55 @@ export default function ProfileScreen() {
             <Ionicons name="create-outline" size={20} color="#007AFF" />
           </TouchableOpacity>
         </View>
-        {transportProviders.map((provider) => (
-          <View key={provider.id} style={styles.itemRow}>
-            <Text style={styles.itemText}>{provider.name}</Text>
-          </View>
-        ))}
+        {transportProviders.length > 0 ? (
+          transportProviders.map((provider, index) => (
+            <View key={index} style={styles.itemRow}>
+              <Text style={styles.itemText}>{renderProviderName(provider)}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No preferred providers selected</Text>
+        )}
       </View>
+      
+      {/* Debug Section - Toggle with button */}
+      <View style={styles.debugToggleContainer}>
+        <TouchableOpacity 
+          style={styles.debugToggleButton} 
+          onPress={() => setShowDebug(!showDebug)}>
+          <Text style={styles.debugToggleText}>
+            {showDebug ? "Hide Debug Info" : "Show Debug Info"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      {showDebug && (
+        <View style={styles.debugSection}>
+          <Text style={styles.debugHeader}>Transport Providers Debug:</Text>
+          <Text style={styles.debugText}>Count: {transportProviders.length}</Text>
+          <Text style={styles.debugText}>Raw Data:</Text>
+          {transportProviders.map((provider, index) => (
+            <View key={index} style={styles.debugItem}>
+              <Text style={styles.debugItemText}>
+                Item {index}: {JSON.stringify(provider)}
+              </Text>
+              <Text style={styles.debugItemType}>
+                Type: {Array.isArray(provider) ? 'Array' : typeof provider}
+              </Text>
+              {Array.isArray(provider) && (
+                <Text style={styles.debugItemDetail}>
+                  Array values: [{provider.join(', ')}]
+                </Text>
+              )}
+              {typeof provider === 'object' && provider !== null && !Array.isArray(provider) && (
+                <Text style={styles.debugItemDetail}>
+                  Keys: {Object.keys(provider).join(', ')}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -193,5 +251,65 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 16,
     color: '#555',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
+    fontStyle: 'italic',
+  },
+  // Debug styles
+  debugToggleContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  debugToggleButton: {
+    backgroundColor: '#6c757d',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  debugToggleText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  debugSection: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  debugHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+    color: '#333',
+  },
+  debugText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 5,
+  },
+  debugItem: {
+    backgroundColor: '#e3e3e3',
+    padding: 8,
+    borderRadius: 4,
+    marginVertical: 4,
+  },
+  debugItemText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: '#333',
+  },
+  debugItemType: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  debugItemDetail: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });

@@ -30,6 +30,15 @@ public class TransportProviderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // Get by name
+    @GetMapping("/by-name/{name}")
+    public ResponseEntity<TransportProvider> getByName(@PathVariable String name) {
+        return providerRepository.findByName(name)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+   
+
     // Create
     @PostMapping
     public TransportProvider create(@RequestBody TransportProvider provider) {
