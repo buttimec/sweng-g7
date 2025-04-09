@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BACKEND_URL } from '@/config';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditTransport() {
   const router = useRouter();
@@ -9,48 +10,34 @@ export default function EditTransport() {
   const [favProviders, setFavProviders] = useState([]);
   const [newProvider, setNewProvider] = useState('');
 
-  // On mount, fetch the favourite providers from the backend
-  useEffect(() => {
-    const loadAllProviders = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/providers`);
-        const data = await res.json();
-        setProviders(data);
-        console.log("All providers:", data);
-      } catch (error) {
-        console.error('Error fetching transport providers:', error);
-      }
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
-        const data = await res.json();
-        setFavProviders(data);
-        console.log("Favorite providers data:", data);
-      } catch (error) {
-        console.error('Error fetching favourite providers:', error);
-      }
-    };
-
-    loadAllProviders();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadAllProviders = async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/providers`);
+          const data = await res.json();
+          setProviders(data);
+          console.log("All providers:", data);
+        } catch (error) {
+          console.error('Error fetching transport providers:', error);
+        }
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
+          const data = await res.json();
+          setFavProviders(data);
+          console.log("Favorite providers data:", data);
+        } catch (error) {
+          console.error('Error fetching favourite providers:', error);
+        }
+      };
+  
+      loadAllProviders();
+    }, [])
+  );
 
   // Function to check if a provider is favorited
   const isProviderFavorited = (providerId) => {
-    console.log(`Checking if provider ${providerId} is favorited among:`, favProviders);
-    
-    // Check different possible formats of favProviders data
-    const isFavorited = favProviders.some(fav => {
-      if (Array.isArray(fav)) {
-        return fav[1] === providerId;
-      } else if (fav.providerId) {
-        return fav.providerId === providerId;
-      } else if (fav.id) {
-        return fav.id === providerId;
-      }
-      return false;
-    });
-    
-    console.log(`Provider ${providerId} is favorited: ${isFavorited}`);
-    return isFavorited;
+    return favProviders.some(fav => fav.provider?.id === providerId);
   };
 
   // Handle adding or removing a provider from favorites
@@ -66,20 +53,7 @@ export default function EditTransport() {
         console.log(`Removed provider ${provider.id} from favorites`);
         
         // Remove from favProviders
-        setFavProviders(prev => {
-          const updated = prev.filter(p => {
-            if (Array.isArray(p)) {
-              return p[1] !== provider.id;
-            } else if (p.providerId) {
-              return p.providerId !== provider.id;
-            } else if (p.id) {
-              return p.id !== provider.id;
-            }
-            return true;
-          });
-          console.log("Updated favorites after removal:", updated);
-          return updated;
-        });
+        setFavProviders(prev => prev.filter(fav => fav.provider?.id !== provider.id));
       } catch (error) {
         console.error('Error unfavoriting provider:', error);
       }
@@ -91,11 +65,11 @@ export default function EditTransport() {
         const result = await response.json();
         console.log(`Added provider ${provider.id} to favorites. Response:`, result);
         
-        // Add to favProviders - adjust this based on your actual response format
         setFavProviders(prev => {
-          // This assumes your backend returns the newly created favorite or the updated list
-          // Adjust based on what your API actually returns
-          const updatedList = [...prev, result.newFavorite || [1, provider.id]];
+          const updatedList = [
+            ...prev,
+            { provider: provider }
+          ];
           console.log("Updated favorites after addition:", updatedList);
           return updatedList;
         });
@@ -129,12 +103,6 @@ export default function EditTransport() {
         )}
       />
       
-      {/* Debug view to show current state */}
-      <View style={styles.debugContainer}>
-        <Text style={styles.debugHeader}>Debug Info:</Text>
-        <Text>Favorite providers count: {favProviders.length}</Text>
-        <Text>Provider IDs: {providers.map(p => p.id).join(', ')}</Text>
-      </View>
     </View>
   );
 }
