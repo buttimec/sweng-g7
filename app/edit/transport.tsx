@@ -20,14 +20,6 @@ export default function EditTransport() {
       } catch (error) {
         console.error('Error fetching transport providers:', error);
       }
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
-        const data = await res.json();
-        setFavProviders(data);
-        console.log("Favorite providers data:", data);
-      } catch (error) {
-        console.error('Error fetching favourite providers:', error);
-      }
     };
 
     loadProviders();
