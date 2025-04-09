@@ -1,27 +1,91 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BACKEND_URL } from '@/config';
 
 export default function EditTransport() {
   const router = useRouter();
-  const [providers, setProviders] = useState([
-    { id: '1', name: 'Provider A' },
-    { id: '2', name: 'Provider B' },
-  ]);
+  const [providers, setProviders] = useState([]);
   const [newProvider, setNewProvider] = useState('');
+
+ // On mount, fetch the favourite providers from the backend
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
+        const data = await res.json();
+        setProviders(data);
+      } catch (error) {
+        console.error('Error fetching transport providers:', error);
+      }
+    };
+
+    loadProviders();
+  }, []);
 
   const handleAddProvider = () => {
     if (newProvider) {
-      setProviders(prev => [...prev, { id: Date.now().toString(), name: newProvider }]);
+      const provider = { name: newProvider };
+      setProviders(prev => [...prev, provider]);
       setNewProvider('');
+      try {
+        // Save providers
+        const urlString = `${BACKEND_URL}/api/favourites/add?userId=1&providerId=` + provider.id;
+        const response = await fetch(urlString, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(providers),
+        });
+        const data = await response.json();
+        console.log('Saved providers:', data);
+  
+        const res = await fetch(`${BACKEND_URL}/api/favourites`);
+        const savedProviders = await res.json();
+        setProviders(savedProviders);
+  
+        router.push('/profile');
+      } catch (error) {
+        console.error('Error saving providers:', error);
+      }
     }
   };
 
-  const handleSave = () => {
-    // Waiting on the database integration
-    console.log('Saved providers:', providers);
-    router.back();
+  //Bring up: Backend delete api can only delete by user id?
+  const handleDeleteProvider = async (provider) => {
+    // If provider has an id, delete it from the backend.
+    if (provider.id) {
+      try {
+        await fetch(`${BACKEND_URL}/api/favourites/${provider.id}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('Error deleting provider:', error);
+      }
+    }
+    // Remove route from local state.
+    setProviders(prev => prev.filter(p => (p.id || p.name) !== (provider.id || provider.name)));
   };
+
+  //const handleSave = () => {
+  //  try {
+  //    // Save providers
+  //    const response = await fetch(`${BACKEND_URL}/api/favourites/add?userId=1&providerId=`, {
+  //      method: 'POST',
+  //      headers: { 'Content-Type': 'application/json' },
+  //      body: JSON.stringify(providers),
+  //    });
+  //    const data = await response.json();
+  //    console.log('Saved providers:', data);
+//
+  //    const res = await fetch(`${BACKEND_URL}/api/favourites`);
+  //    const savedProviders = await res.json();
+  //    setProviders(savedProviders);
+//
+  //    router.push('/profile');
+  //  } catch (error) {
+  //    console.error('Error saving providers:', error);
+  //  }
+  //};
 
   return (
     <View style={styles.container}>
@@ -32,6 +96,9 @@ export default function EditTransport() {
         renderItem={({ item }) => (
           <View style={styles.providerItem}>
             <Text style={styles.providerText}>{item.name}</Text>
+            <TouchableOpacity onPress={() => handleDeleteProvider(item)} style={styles.deleteButton}>
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
           </View>
         )}
       />
@@ -43,9 +110,6 @@ export default function EditTransport() {
       />
       <TouchableOpacity style={styles.addButton} onPress={handleAddProvider}>
         <Text style={styles.buttonText}>Add Provider</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.buttonText}>Save Providers</Text>
       </TouchableOpacity>
     </View>
   );
@@ -101,4 +165,14 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: '600' 
   },
+  deleteButton: {
+    backgroundColor: '#dc3545',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  }
 });

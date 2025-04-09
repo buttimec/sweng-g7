@@ -23,7 +23,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchTransportProviders = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/favourites`);
+        const response = await fetch(`${BACKEND_URL}/api/favourites/1`);
         if (response.ok) {
           const data = await response.json();
           setTransportProviders(data);
