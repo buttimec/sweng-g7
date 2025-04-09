@@ -47,11 +47,23 @@ public class FavouriteProviderController {
                         }))
                 .orElse(ResponseEntity.notFound().build());
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> removeFavourite(@PathVariable Long id) {
         if (favouriteRepository.existsById(id)) {
             favouriteRepository.deleteById(id);
+            return ResponseEntity.noContent().build(); // 204
+        } else {
+            return ResponseEntity.notFound().build(); // 404
+        }
+    }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<Void> deleteFavourite(
+        @RequestParam Long userId,
+        @RequestParam Long providerId
+        ) {
+        if (favouriteRepository.existsByUserIdAndProviderId(userId, providerId)) {
+            favouriteRepository.deleteById(userId);
             return ResponseEntity.noContent().build(); // 204
         } else {
             return ResponseEntity.notFound().build(); // 404
