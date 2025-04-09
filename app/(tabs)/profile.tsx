@@ -85,12 +85,11 @@ export default function ProfileScreen() {
     fetchSavedRoutes();
   }, []);
 
-  // Function to render a provider name based on the data structure
   const renderProviderName = (provider) => {
-    if (typeof provider === 'string') return provider;
-    if (provider.name) return provider.name;
-    if (provider.provider_name) return provider.provider_name;
-    if (Array.isArray(provider)) return `Provider ID: ${provider[1]}`;
+    if (provider.provider) {
+      const { name, vehicleType } = provider.provider;
+      return `${name} (${vehicleType})`;
+    }
     return 'Unknown Provider';
   };
 
