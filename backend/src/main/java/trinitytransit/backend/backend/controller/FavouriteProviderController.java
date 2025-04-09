@@ -9,6 +9,7 @@ import trinitytransit.backend.backend.repository.PersonalDetailsRepository;
 import trinitytransit.backend.backend.repository.TransportProviderRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -31,21 +32,29 @@ public class FavouriteProviderController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<FavouriteProvider> addFavourite(
-            @RequestParam Long providerId,
-            @RequestParam Long userId
+    public ResponseEntity<?> addFavourite(
+            @RequestParam Long userId,
+            @RequestParam Long providerId
     ) {
         if (favouriteRepository.existsByUserIdAndProviderId(userId, providerId)) {
-            return ResponseEntity.status(409).build(); // Conflict - already exists
+            return ResponseEntity.status(409).body(Map.of("error", "Favorite already exists"));
         }
-
+    
         return transportProviderRepository.findById(providerId)
                 .flatMap(provider -> personalDetailsRepository.findById(userId)
                         .map(user -> {
                             FavouriteProvider favourite = new FavouriteProvider(provider, user);
-                            return ResponseEntity.ok(favouriteRepository.save(favourite));
+                            favouriteRepository.save(favourite);
+    
+                            // Return a success message with relevant data
+                            Map<String, Object> response = Map.of(
+                                    "message", "Favorite added successfully",
+                                    "providerId", providerId,
+                                    "userId", userId
+                            );
+                            return ResponseEntity.ok(response);
                         }))
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.status(404).body(Map.of("error", "User or provider not found")));
     }
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> removeFavourite(@PathVariable Long id) {
