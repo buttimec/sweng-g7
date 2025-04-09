@@ -19,6 +19,10 @@ export default function ProfileScreen() {
 
   // Saved providers fetched from backend
   const [transportProviders, setTransportProviders] = useState([]);
+
+  // All providers fetched from backend
+  const [allTransportProviders, setAllTransportProviders] = useState([]);
+
   
   // Debug state
   const [showDebug, setShowDebug] = useState(false);
@@ -37,6 +41,14 @@ export default function ProfileScreen() {
         }
       } catch (error) {
         console.error('Error fetching transport providers:', error.message);
+      }
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/providers`);
+        const data = await res.json();
+        setAllTransportProviders(data);
+        console.log("All providers:", data);
+      } catch (error) {
+        console.error('Error fetching transport providers:', error);
       }
     };
 
@@ -86,13 +98,8 @@ export default function ProfileScreen() {
     fetchSavedRoutes();
   }, []);
 
-  // Function to render a provider name based on the data structure
   const renderProviderName = (provider) => {
-    if (typeof provider === 'string') return provider;
-    if (provider.name) return provider.name;
-    if (provider.provider_name) return provider.provider_name;
-    if (Array.isArray(provider)) return `Provider ID: ${provider[1]}`;
-    return 'Unknown Provider';
+    if (provider.providerId) return allTransportProviders.find(p => p.id === provider.providerId)?.name || 'Unknown Provider';
   };
 
   return (
