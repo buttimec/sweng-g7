@@ -1,26 +1,82 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BACKEND_URL } from '@/config';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditTransport() {
   const router = useRouter();
-  const [providers, setProviders] = useState([
-    { id: '1', name: 'Provider A' },
-    { id: '2', name: 'Provider B' },
-  ]);
+  const [providers, setProviders] = useState([]);
+  const [favProviders, setFavProviders] = useState([]);
   const [newProvider, setNewProvider] = useState('');
 
-  const handleAddProvider = () => {
-    if (newProvider) {
-      setProviders(prev => [...prev, { id: Date.now().toString(), name: newProvider }]);
-      setNewProvider('');
-    }
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadAllProviders = async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/providers`);
+          const data = await res.json();
+          setProviders(data);
+          console.log("All providers:", data);
+        } catch (error) {
+          console.error('Error fetching transport providers:', error);
+        }
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/favourites/1`);
+          const data = await res.json();
+          setFavProviders(data);
+          console.log("Favorite providers data:", data);
+        } catch (error) {
+          console.error('Error fetching favourite providers:', error);
+        }
+      };
+  
+      loadAllProviders();
+    }, [])
+  );
+
+  // Function to check if a provider is favorited
+  const isProviderFavorited = (providerId) => {
+    return favProviders.some(fav => fav.provider?.id === providerId);
   };
 
-  const handleSave = () => {
-    // Waiting on the database integration
-    console.log('Saved providers:', providers);
-    router.back();
+  // Handle adding or removing a provider from favorites
+  const handleAddProvider = async(provider) => {
+    const isCurrentlyFavorited = isProviderFavorited(provider.id);
+    console.log(`About to ${isCurrentlyFavorited ? 'unfavorite' : 'favorite'} provider:`, provider);
+    
+    if (isCurrentlyFavorited) {
+      try {
+        await fetch(`${BACKEND_URL}/api/favourites/delete?userId=1&providerId=${provider.id}`, {
+          method: 'DELETE',
+        });
+        console.log(`Removed provider ${provider.id} from favorites`);
+        
+        // Remove from favProviders
+        setFavProviders(prev => prev.filter(fav => fav.provider?.id !== provider.id));
+      } catch (error) {
+        console.error('Error unfavoriting provider:', error);
+      }
+    } else {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/favourites/add?userId=1&providerId=${provider.id}`, {
+          method: 'POST',
+        });
+        const result = await response.json();
+        console.log(`Added provider ${provider.id} to favorites. Response:`, result);
+        
+        setFavProviders(prev => {
+          const updatedList = [
+            ...prev,
+            { provider: provider }
+          ];
+          console.log("Updated favorites after addition:", updatedList);
+          return updatedList;
+        });
+      } catch (error) {
+        console.error('Error favoriting provider:', error);
+      }
+    }
   };
 
   return (
@@ -28,25 +84,25 @@ export default function EditTransport() {
       <Text style={styles.header}>Edit Preferred Transport Providers</Text>
       <FlatList 
         data={providers}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
         renderItem={({ item }) => (
           <View style={styles.providerItem}>
             <Text style={styles.providerText}>{item.name}</Text>
+            <TouchableOpacity 
+              onPress={() => handleAddProvider(item)} 
+              style={[
+                styles.favButton,
+                isProviderFavorited(item.id) && styles.favButtonActive
+              ]}
+            >
+              <Text style={styles.favButtonText}>
+                {isProviderFavorited(item.id) ? 'Favorited' : 'Favorite'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       />
-      <TextInput 
-        style={styles.input}
-        placeholder="New provider name"
-        value={newProvider}
-        onChangeText={setNewProvider}
-      />
-      <TouchableOpacity style={styles.addButton} onPress={handleAddProvider}>
-        <Text style={styles.buttonText}>Add Provider</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.buttonText}>Save Providers</Text>
-      </TouchableOpacity>
+      
     </View>
   );
 }
@@ -65,7 +121,13 @@ const styles = StyleSheet.create({
     color: '#333' 
   },
   providerItem: { 
-    paddingVertical: 8 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
   },
   providerText: { 
     fontSize: 16, 
@@ -96,9 +158,39 @@ const styles = StyleSheet.create({
     borderRadius: 8, 
     alignItems: 'center' 
   },
+  buttonFav: { 
+    backgroundColor: '#FDD017', 
+    paddingVertical: 12, 
+    paddingHorizontal: 20, 
+    borderRadius: 8, 
+    alignItems: 'center' 
+  },
   buttonText: { 
     color: '#fff', 
     fontSize: 16, 
     fontWeight: '600' 
   },
+  favButton: {
+    backgroundColor: '#dc3545',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+  },
+  favButtonActive: {
+    backgroundColor: '#FDD017', // Yellow color for favorited items
+  },
+  favButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  debugContainer: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  debugHeader: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  }
 });
